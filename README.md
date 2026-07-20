@@ -53,6 +53,10 @@ src/
 Consulter [ARCHITECTURE.md](./ARCHITECTURE.md) pour les décisions et les limites
 de sécurité.
 
+Le pipeline CI, l'image Nginx de staging, les en-têtes de sécurité et la
+procédure de rollback sont documentés dans
+[docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md).
+
 ## Synchronisation hors ligne
 
 La file IndexedDB et l’en-tête `X-Idempotency-Key` sont prêts, mais la

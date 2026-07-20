@@ -1,0 +1,146 @@
+name: Frontend CI and staging image
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      api_url:
+        description: URL complète de l'API staging, suffixe /api inclus
+        required: true
+        type: string
+      api_origin:
+        description: Origine HTTPS de l'API autorisée par la CSP, sans chemin
+        required: true
+        type: string
+
+concurrency:
+  group: frontend-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    name: Format, lint, tests and build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      VITE_API_URL: https://api.example.invalid/api
+      VITE_ENABLE_OFFLINE_SYNC: 'false'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Check formatting
+        run: npm run format:check
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Run unit tests
+        run: npm run test
+
+      - name: Build production PWA
+        run: npm run build
+
+      - name: Upload production bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist-${{ github.sha }}
+          path: dist
+          if-no-files-found: error
+          retention-days: 14
+
+  staging-image:
+    name: Publish immutable staging image
+    if: github.event_name == 'workflow_dispatch'
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: staging
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate staging configuration
+        env:
+          API_URL: ${{ inputs.api_url }}
+          API_ORIGIN: ${{ inputs.api_origin }}
+        run: |
+          test -n "$API_URL"
+          test -n "$API_ORIGIN"
+          case "$API_URL" in https://*/api) ;; *) echo "api_url must use HTTPS and end with /api"; exit 1 ;; esac
+          case "$API_ORIGIN" in https://*) ;; *) echo "api_origin must be an HTTPS origin"; exit 1 ;; esac
+
+      - name: Compute lowercase image name
+        shell: bash
+        run: echo "IMAGE_NAME=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and publish staging image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          build-args: |
+            VITE_API_URL=${{ inputs.api_url }}
+            VITE_ENABLE_OFFLINE_SYNC=false
+            CSP_CONNECT_SRC=${{ inputs.api_origin }}
+          tags: |
+            ${{ env.IMAGE_NAME }}:staging
+            ${{ env.IMAGE_NAME }}:staging-${{ github.sha }}
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Smoke test staging image
+        shell: bash
+        run: |
+          container="sahel-signal-smoke-${GITHUB_RUN_ID}"
+          image="${IMAGE_NAME}:staging-${GITHUB_SHA}"
+          trap 'docker rm -f "$container" >/dev/null 2>&1 || true' EXIT
+          docker run --detach --name "$container" --publish 127.0.0.1:8080:8080 "$image"
+          for attempt in {1..20}; do
+            curl --fail --silent http://127.0.0.1:8080/healthz && break
+            if [ "$attempt" -eq 20 ]; then docker logs "$container"; exit 1; fi
+            sleep 1
+          done
+          curl --fail --silent http://127.0.0.1:8080/connexion | grep --quiet '<div id="root"></div>'
+          curl --fail --silent --head http://127.0.0.1:8080/connexion | grep --ignore-case --quiet '^content-security-policy:'
+          curl --fail --silent --head http://127.0.0.1:8080/connexion | grep --ignore-case --quiet '^strict-transport-security:'
+          curl --fail --silent --head http://127.0.0.1:8080/sw.js | grep --ignore-case --quiet 'cache-control:.*no-store'
+
+      - name: Publish deployment summary
+        run: |
+          echo "## Staging image ready" >> "$GITHUB_STEP_SUMMARY"
+          echo "\`${IMAGE_NAME}:staging-${GITHUB_SHA}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "Deploy this immutable tag with \`deploy/compose.staging.yml\`." >> "$GITHUB_STEP_SUMMARY"

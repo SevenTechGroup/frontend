@@ -1,0 +1,10 @@
+.git
+.github
+.env
+.env.local
+.env.*.local
+coverage
+dist
+node_modules
+npm-debug.log*
+runtime-logs
