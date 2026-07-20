@@ -22,6 +22,10 @@ class DraftRepository {
       ...(draft.locationText === undefined ? {} : { locationText: draft.locationText }),
       ...(draft.priority === undefined ? {} : { priority: draft.priority }),
       ...(draft.compressedPhoto === undefined ? {} : { compressedPhoto: draft.compressedPhoto }),
+      ...(draft.coordinates === undefined ? {} : { coordinates: draft.coordinates }),
+      ...(draft.locationConsentAccepted === undefined
+        ? {}
+        : { locationConsentAccepted: draft.locationConsentAccepted }),
     };
     await offlineDatabase.drafts.put(persisted);
     return persisted;

@@ -6,6 +6,12 @@ export const REPORT_STATUSES = ['received', 'in_progress', 'resolved'] as const;
 export type ReportPriority = (typeof REPORT_PRIORITIES)[number];
 export type ReportStatus = (typeof REPORT_STATUSES)[number];
 
+export interface ReportCoordinates {
+  latitude: number;
+  longitude: number;
+  accuracy: number;
+}
+
 export interface Category {
   id: number;
   name: string;

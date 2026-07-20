@@ -1,4 +1,4 @@
-import type { CreateReportInput, ReportPriority } from '../models';
+import type { CreateReportInput, ReportCoordinates, ReportPriority } from '../models';
 
 export interface OfflineDraft {
   clientSubmissionId: string;
@@ -9,6 +9,8 @@ export interface OfflineDraft {
   locationText?: string | null;
   priority?: ReportPriority;
   compressedPhoto?: Blob;
+  coordinates?: ReportCoordinates;
+  locationConsentAccepted?: boolean;
   consentAccepted: boolean;
   updatedAt: string;
 }

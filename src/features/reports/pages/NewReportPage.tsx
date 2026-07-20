@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import type { ReportPriority } from '../../../models';
+import type { ReportCoordinates, ReportPriority } from '../../../models';
 import { draftRepository, syncService, useNetworkStatus } from '../../../offline';
 import { queryKeys, referenceService, reportService, toApiError } from '../../../services';
 import {
@@ -15,6 +15,7 @@ import {
   type ReportFormField,
   type ReportFormValues,
 } from '../report-form.validation';
+import { ReportEvidenceFields } from '../components/ReportEvidenceFields';
 
 const PRIORITIES: Array<{
   value: ReportPriority;
@@ -137,6 +138,10 @@ export function NewReportPage() {
   const [clientSubmissionId] = useState(() => requestedDraftId ?? crypto.randomUUID());
   const [currentStep, setCurrentStep] = useState(0);
   const [values, setValues] = useState<ReportFormValues>(INITIAL_REPORT_FORM_VALUES);
+  const [compressedPhoto, setCompressedPhoto] = useState<Blob | null>(null);
+  const [photoPreviewUrl, setPhotoPreviewUrl] = useState<string | null>(null);
+  const [coordinates, setCoordinates] = useState<ReportCoordinates | null>(null);
+  const [locationConsentAccepted, setLocationConsentAccepted] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<ReportFormErrors>({});
   const [draftLoading, setDraftLoading] = useState(Boolean(requestedDraftId));
   const [notice, setNotice] = useState<string | null>(null);
@@ -198,6 +203,9 @@ export function NewReportPage() {
           locationText: draft.locationText ?? '',
           priority: draft.priority ?? 'medium',
         });
+        setCompressedPhoto(draft.compressedPhoto ?? null);
+        setCoordinates(draft.coordinates ?? null);
+        setLocationConsentAccepted(draft.locationConsentAccepted ?? false);
         setNotice('Brouillon repris. Vos informations ont été restaurées.');
       })
       .catch((caught: unknown) => {
@@ -211,6 +219,17 @@ export function NewReportPage() {
       cancelled = true;
     };
   }, [requestedDraftId]);
+
+  useEffect(() => {
+    if (!compressedPhoto) {
+      setPhotoPreviewUrl(null);
+      return;
+    }
+
+    const objectUrl = URL.createObjectURL(compressedPhoto);
+    setPhotoPreviewUrl(objectUrl);
+    return () => URL.revokeObjectURL(objectUrl);
+  }, [compressedPhoto]);
 
   const updateValue = <Field extends ReportFormField>(
     field: Field,
@@ -259,6 +278,9 @@ export function NewReportPage() {
       ...(values.territoryId ? { territoryId: Number(values.territoryId) } : {}),
       ...(values.locationText.trim() ? { locationText: values.locationText.trim() } : {}),
       priority: values.priority,
+      ...(compressedPhoto ? { compressedPhoto } : {}),
+      ...(coordinates ? { coordinates } : {}),
+      locationConsentAccepted,
     });
     setSearchParams({ brouillon: clientSubmissionId }, { replace: true });
     await queryClient.invalidateQueries({ queryKey: queryKeys.drafts });
@@ -296,6 +318,14 @@ export function NewReportPage() {
     setError(null);
     setNotice(null);
     try {
+      if (compressedPhoto || coordinates) {
+        await saveDraft();
+        setNotice(
+          'La photo et la position sont enregistrées dans le brouillon. Leur envoi sera disponible dès que l’API sécurisée de pièces jointes et de localisation sera livrée.',
+        );
+        return;
+      }
+
       if (!isOnline) {
         await saveDraft();
         await syncService.enqueueReport(clientSubmissionId, toCreateReportInput(values));
@@ -594,6 +624,19 @@ export function NewReportPage() {
                     </span>
                     <FieldError id="locationText-error" message={fieldErrors.locationText} />
                   </div>
+
+                  <ReportEvidenceFields
+                    photo={compressedPhoto}
+                    photoPreviewUrl={photoPreviewUrl}
+                    coordinates={coordinates}
+                    locationConsentAccepted={locationConsentAccepted}
+                    onPhotoChange={(photo) => {
+                      setCompressedPhoto(photo);
+                      setNotice(null);
+                    }}
+                    onCoordinatesChange={setCoordinates}
+                    onLocationConsentChange={setLocationConsentAccepted}
+                  />
                 </div>
               )}
 
@@ -621,6 +664,22 @@ export function NewReportPage() {
                       <SummaryRow
                         label="Urgence"
                         value={selectedPriority?.label ?? values.priority}
+                      />
+                      <SummaryRow
+                        label="Photo"
+                        value={
+                          compressedPhoto
+                            ? `Photo compressée prête (${Math.max(1, Math.round(compressedPhoto.size / 1024))} Ko)`
+                            : 'Aucune photo'
+                        }
+                      />
+                      <SummaryRow
+                        label="Position GPS"
+                        value={
+                          coordinates
+                            ? `Ajoutée avec consentement · précision ${Math.round(coordinates.accuracy)} m`
+                            : 'Non utilisée'
+                        }
                       />
                     </dl>
                   </div>
@@ -672,6 +731,12 @@ export function NewReportPage() {
                     />
                     {isOnline ? 'Connexion disponible' : 'Mode hors ligne : envoi différé'}
                   </div>
+                  {(compressedPhoto || coordinates) && (
+                    <p className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm font-semibold leading-6 text-amber-950">
+                      La photo et la position seront conservées dans votre brouillon jusqu’à
+                      l’activation des endpoints sécurisés par le backend.
+                    </p>
+                  )}
                 </div>
               )}
             </div>
@@ -712,7 +777,9 @@ export function NewReportPage() {
                   {createReport.isPending
                     ? 'Envoi en cours…'
                     : currentStep === REPORT_FORM_STEPS.length - 1
-                      ? 'Envoyer maintenant'
+                      ? compressedPhoto || coordinates
+                        ? 'Conserver le brouillon sécurisé'
+                        : 'Envoyer maintenant'
                       : currentStep === REPORT_FORM_STEPS.length - 2
                         ? 'Confirmer les informations'
                         : 'Continuer'}
