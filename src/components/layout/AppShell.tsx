@@ -2,8 +2,8 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../app/providers/use-auth';
-import { getRoleInterface, type WorkspaceIcon } from '../../config/role-interface';
 import { syncService, useNetworkStatus } from '../../offline';
+import { can } from '../../security/authorization';
 import { queryKeys } from '../../services';
 import { BrandLogo } from '../brand/BrandLogo';
 
@@ -15,14 +15,12 @@ function navClass({ isActive }: { isActive: boolean }) {
   }`;
 }
 
-function NavIcon({ name }: { name: WorkspaceIcon }) {
+function NavIcon({ name }: { name: 'dashboard' | 'reports' | 'new' | 'drafts' }) {
   const paths = {
     dashboard: 'M4 13h6V4H4v9Zm10 7h6v-9h-6v9ZM4 20h6v-3H4v3Zm10-13h6V4h-6v3Z',
     reports: 'M7 3h8l4 4v14H7V3Zm8 0v5h4M10 12h6m-6 4h6',
     new: 'M12 5v14M5 12h14',
     drafts: 'M5 4h14v16H5V4Zm4 4h6m-6 4h6m-6 4h4',
-    assignments: 'M8 6h11v14H5V6h3Zm0 0V4h6v2M9 11h6m-6 4h4',
-    notifications: 'M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9Zm-8 12h4',
   } as const;
 
   return (
@@ -38,6 +36,12 @@ function NavIcon({ name }: { name: WorkspaceIcon }) {
   );
 }
 
+const roleLabels = {
+  citizen: 'Citoyen',
+  agent: 'Agent terrain',
+  manager: 'Responsable',
+} as const;
+
 export function AppShell() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
@@ -50,7 +54,6 @@ export function AppShell() {
       .slice(0, 2)
       .map((part) => part[0]?.toUpperCase())
       .join('') || 'SS';
-  const roleInterface = user ? getRoleInterface(user.role) : null;
 
   useEffect(() => {
     if (!isOnline || !syncService.isAutomaticSyncEnabled()) return;
@@ -87,26 +90,32 @@ export function AppShell() {
         <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-3 px-4 py-3 sm:px-6 lg:flex-nowrap lg:gap-6">
           <div className="mr-auto shrink-0">
             <BrandLogo to="/tableau-de-bord" />
-            <p className="mt-0.5 hidden text-[0.65rem] font-black uppercase tracking-[0.16em] text-teal-700 sm:block">
-              {roleInterface?.workspace}
-            </p>
           </div>
 
           <nav
             className="order-3 flex w-full items-center gap-1 overflow-x-auto pb-0.5 lg:order-none lg:w-auto lg:overflow-visible lg:pb-0"
             aria-label="Navigation principale"
           >
-            {roleInterface?.nav.map((item) => (
-              <NavLink
-                key={item.to}
-                to={item.to}
-                end={item.to === '/signalements'}
-                className={navClass}
-              >
-                <NavIcon name={item.icon} />
-                {item.label}
-              </NavLink>
-            ))}
+            <NavLink to="/tableau-de-bord" className={navClass}>
+              <NavIcon name="dashboard" />
+              Tableau de bord
+            </NavLink>
+            <NavLink to="/signalements" className={navClass}>
+              <NavIcon name="reports" />
+              Signalements
+            </NavLink>
+            {can(user, 'report:create') && (
+              <>
+                <NavLink to="/signalements/nouveau" className={navClass}>
+                  <NavIcon name="new" />
+                  Nouveau
+                </NavLink>
+                <NavLink to="/brouillons" className={navClass}>
+                  <NavIcon name="drafts" />
+                  Brouillons
+                </NavLink>
+              </>
+            )}
           </nav>
 
           <div className="ml-auto flex shrink-0 items-center gap-2">
@@ -130,7 +139,9 @@ export function AppShell() {
                 <strong className="block truncate text-sm font-black text-slate-900">
                   {user?.name}
                 </strong>
-                <span className="text-xs font-semibold text-slate-400">{roleInterface?.label}</span>
+                <span className="text-xs font-semibold text-slate-400">
+                  {user ? roleLabels[user.role] : ''}
+                </span>
               </span>
             </div>
 
