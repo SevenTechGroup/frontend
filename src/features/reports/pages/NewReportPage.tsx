@@ -156,7 +156,12 @@ export function NewReportPage() {
     queryFn: () => referenceService.territories(),
   });
   const createReport = useMutation({
-    mutationFn: () => reportService.create(toCreateReportInput(values), clientSubmissionId),
+    mutationFn: () =>
+      reportService.create(toCreateReportInput(values), clientSubmissionId, {
+        photo: compressedPhoto,
+        coordinates,
+        locationConsentAccepted,
+      }),
     onSuccess: async () => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.reports }),
@@ -318,21 +323,19 @@ export function NewReportPage() {
     setError(null);
     setNotice(null);
     try {
-      if (compressedPhoto || coordinates) {
-        await saveDraft();
-        setNotice(
-          'La photo et la position sont enregistrées dans le brouillon. Leur envoi sera disponible dès que l’API sécurisée de pièces jointes et de localisation sera livrée.',
-        );
-        return;
-      }
-
       if (!isOnline) {
         await saveDraft();
-        await syncService.enqueueReport(clientSubmissionId, toCreateReportInput(values));
-        await queryClient.invalidateQueries({ queryKey: queryKeys.syncQueue });
-        setNotice(
-          'Vous êtes hors ligne. Le signalement est conservé sur cet appareil et sera envoyé après reconnexion.',
-        );
+        if (compressedPhoto || coordinates) {
+          setNotice(
+            'Vous êtes hors ligne. La photo et la position sont protégées dans ce brouillon ; reprenez-le après reconnexion pour les envoyer ensemble.',
+          );
+        } else {
+          await syncService.enqueueReport(clientSubmissionId, toCreateReportInput(values));
+          await queryClient.invalidateQueries({ queryKey: queryKeys.syncQueue });
+          setNotice(
+            'Vous êtes hors ligne. Le signalement est conservé sur cet appareil et sera envoyé après reconnexion.',
+          );
+        }
         return;
       }
 
@@ -732,9 +735,10 @@ export function NewReportPage() {
                     {isOnline ? 'Connexion disponible' : 'Mode hors ligne : envoi différé'}
                   </div>
                   {(compressedPhoto || coordinates) && (
-                    <p className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm font-semibold leading-6 text-amber-950">
-                      La photo et la position seront conservées dans votre brouillon jusqu’à
-                      l’activation des endpoints sécurisés par le backend.
+                    <p className="mt-4 rounded-xl border border-teal-200 bg-teal-50 p-3 text-sm font-semibold leading-6 text-teal-950">
+                      {isOnline
+                        ? 'La photo sera envoyée vers le stockage Cloudinary privé et la position sera enregistrée avec votre consentement.'
+                        : 'La photo et la position resteront protégées dans votre brouillon jusqu’à votre reconnexion.'}
                     </p>
                   )}
                 </div>
@@ -777,9 +781,9 @@ export function NewReportPage() {
                   {createReport.isPending
                     ? 'Envoi en cours…'
                     : currentStep === REPORT_FORM_STEPS.length - 1
-                      ? compressedPhoto || coordinates
-                        ? 'Conserver le brouillon sécurisé'
-                        : 'Envoyer maintenant'
+                      ? isOnline
+                        ? 'Envoyer maintenant'
+                        : 'Conserver hors ligne'
                       : currentStep === REPORT_FORM_STEPS.length - 2
                         ? 'Confirmer les informations'
                         : 'Continuer'}

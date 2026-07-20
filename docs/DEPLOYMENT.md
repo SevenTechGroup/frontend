@@ -83,6 +83,8 @@ La configuration Nginx applique les règles suivantes :
 - `sw.js`, le manifeste et Workbox ne sont jamais mis en cache durablement ;
 - le endpoint `/healthz` permet les sondes de disponibilité ;
 - la CSP autorise uniquement l'origine API fournie lors du build.
+- les médias privés peuvent être délivrés uniquement depuis `https://res.cloudinary.com` ;
+  les envois passent toujours par Laravel et aucun secret Cloudinary n'est intégré au frontend.
 
 ## Rollback
 

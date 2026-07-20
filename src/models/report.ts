@@ -12,6 +12,33 @@ export interface ReportCoordinates {
   accuracy: number;
 }
 
+export interface ReportLocation {
+  id: number;
+  report_id: number;
+  latitude: number;
+  longitude: number;
+  accuracy_m: number;
+  source: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ReportAttachment {
+  id: number;
+  report_id: number;
+  provider: string;
+  resource_type: string;
+  delivery_type: string;
+  format: string | null;
+  mime_type: string;
+  original_filename: string;
+  bytes: number;
+  width: number | null;
+  height: number | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Category {
   id: number;
   name: string;
@@ -45,6 +72,8 @@ export interface Report {
   category?: Category;
   territory?: Territory;
   user?: User;
+  attachments?: ReportAttachment[];
+  location?: ReportLocation | null;
   created_at: string;
   updated_at: string;
 }
@@ -56,6 +85,12 @@ export interface CreateReportInput {
   territory_id: number;
   location_text?: string | null;
   priority?: ReportPriority;
+}
+
+export interface CreateReportEvidence {
+  photo?: Blob | null;
+  coordinates?: ReportCoordinates | null;
+  locationConsentAccepted?: boolean;
 }
 
 export interface UpdateReportInput {
