@@ -35,4 +35,91 @@
   .button-secondary {
     @apply min-h-11 rounded-xl border border-slate-300 bg-white px-5 py-2.5 font-semibold text-slate-800 hover:bg-slate-50;
   }
+
+  .landing-eyebrow {
+    @apply text-xs font-black uppercase tracking-[0.2em] text-teal-700;
+  }
+
+  .landing-title {
+    @apply text-4xl font-black leading-tight tracking-[-0.04em] text-slate-950 sm:text-5xl;
+  }
+
+  .landing-card {
+    @apply rounded-[1.75rem] border border-slate-200/80 bg-white shadow-[0_20px_60px_-35px_rgba(15,78,68,0.35)] transition duration-300 hover:-translate-y-2 hover:border-teal-200 hover:shadow-[0_30px_70px_-30px_rgba(15,78,68,0.4)];
+  }
+
+  .auth-input {
+    @apply flex min-h-14 w-full items-center rounded-xl border border-slate-300 bg-white px-1 shadow-sm transition focus-within:border-teal-700 focus-within:ring-4 focus-within:ring-teal-700/10 hover:border-slate-400;
+  }
+
+  .auth-input input {
+    @apply min-w-0 flex-1 bg-transparent px-3 py-3.5 text-base font-medium text-slate-950 outline-none placeholder:font-normal placeholder:text-slate-400;
+  }
+
+  .auth-input-icon {
+    @apply ml-3 size-5 shrink-0 text-slate-400 transition-colors;
+  }
+
+  .auth-input:focus-within .auth-input-icon {
+    @apply text-teal-700;
+  }
+
+  .auth-password-toggle {
+    @apply mr-1 grid size-11 shrink-0 place-items-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-teal-800;
+  }
+}
+
+.landing-grid {
+  background-image:
+    linear-gradient(rgba(15, 118, 110, 0.055) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(15, 118, 110, 0.055) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: linear-gradient(to bottom, black 25%, transparent 92%);
+}
+
+.app-map {
+  background-color: #dcefe6;
+  background-image:
+    radial-gradient(circle at 70% 18%, rgba(245, 158, 11, 0.12) 0 20%, transparent 21%),
+    radial-gradient(circle at 18% 82%, rgba(13, 148, 136, 0.15) 0 23%, transparent 24%),
+    linear-gradient(145deg, transparent 35%, rgba(15, 118, 110, 0.05) 36% 55%, transparent 56%);
+}
+
+@keyframes landing-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+@keyframes landing-float-delayed {
+  0%,
+  100% {
+    transform: translateY(-3px) rotate(-1deg);
+  }
+  50% {
+    transform: translateY(7px) rotate(1deg);
+  }
+}
+
+.animate-landing-float {
+  animation: landing-float 6s ease-in-out infinite;
+}
+
+.animate-landing-float-delayed {
+  animation: landing-float-delayed 7s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
