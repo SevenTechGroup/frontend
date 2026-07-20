@@ -7,4 +7,6 @@ export const queryKeys = {
   notifications: ['notifications'] as const,
   categories: ['references', 'categories'] as const,
   territories: ['references', 'territories'] as const,
+  drafts: ['offline', 'drafts'] as const,
+  syncQueue: ['offline', 'sync-queue'] as const,
 };

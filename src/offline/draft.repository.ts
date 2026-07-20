@@ -11,7 +11,18 @@ class DraftRepository {
   }
 
   async save(draft: Omit<OfflineDraft, 'updatedAt'>): Promise<OfflineDraft> {
-    const persisted = { ...draft, updatedAt: new Date().toISOString() };
+    const persisted: OfflineDraft = {
+      clientSubmissionId: draft.clientSubmissionId,
+      consentAccepted: draft.consentAccepted,
+      updatedAt: new Date().toISOString(),
+      ...(draft.title === undefined ? {} : { title: draft.title }),
+      ...(draft.description === undefined ? {} : { description: draft.description }),
+      ...(draft.categoryId === undefined ? {} : { categoryId: draft.categoryId }),
+      ...(draft.territoryId === undefined ? {} : { territoryId: draft.territoryId }),
+      ...(draft.locationText === undefined ? {} : { locationText: draft.locationText }),
+      ...(draft.priority === undefined ? {} : { priority: draft.priority }),
+      ...(draft.compressedPhoto === undefined ? {} : { compressedPhoto: draft.compressedPhoto }),
+    };
     await offlineDatabase.drafts.put(persisted);
     return persisted;
   }

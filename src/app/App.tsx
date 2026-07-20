@@ -3,6 +3,7 @@ import { AppShell } from '../components/layout/AppShell';
 import { AuthPage } from '../features/auth/pages/AuthPage';
 import { DashboardPage } from '../features/dashboard/pages/DashboardPage';
 import { NewReportPage } from '../features/reports/pages/NewReportPage';
+import { DraftsPage } from '../features/reports/pages/DraftsPage';
 import { ReportsPage } from '../features/reports/pages/ReportsPage';
 import { HomePage } from '../pages/HomePage';
 import { NotAuthorizedPage } from '../pages/NotAuthorizedPage';
@@ -23,6 +24,7 @@ export function App() {
             <Route path="/tableau-de-bord" element={<DashboardPage />} />
             <Route path="/signalements" element={<ReportsPage />} />
             <Route path="/signalements/nouveau" element={<NewReportPage />} />
+            <Route path="/brouillons" element={<DraftsPage />} />
           </Route>
         </Route>
 

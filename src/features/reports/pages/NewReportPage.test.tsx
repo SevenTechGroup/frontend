@@ -3,6 +3,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { draftRepository } from '../../../offline';
 import { NewReportPage } from './NewReportPage';
 
 vi.mock('../../../services', () => ({
@@ -34,14 +35,16 @@ vi.mock('../../../services', () => ({
 }));
 
 vi.mock('../../../offline', () => ({
+  useNetworkStatus: () => true,
   draftRepository: {
+    get: vi.fn(),
     save: vi.fn(),
     remove: vi.fn(),
   },
-  syncService: { enqueueReport: vi.fn() },
+  syncService: { enqueueReport: vi.fn(), removeBySubmission: vi.fn() },
 }));
 
-function renderPage() {
+function renderPage(initialEntry = '/signalements/nouveau') {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false, staleTime: Number.POSITIVE_INFINITY } },
   });
@@ -65,7 +68,7 @@ function renderPage() {
 
   return render(
     <QueryClientProvider client={queryClient}>
-      <MemoryRouter>
+      <MemoryRouter initialEntries={[initialEntry]}>
         <NewReportPage />
       </MemoryRouter>
     </QueryClientProvider>,
@@ -121,4 +124,26 @@ describe('NewReportPage', () => {
       'La route est impraticable depuis les fortes pluies de ce matin.',
     );
   }, 15_000);
+
+  it('restores a selected local draft', async () => {
+    vi.spyOn(draftRepository, 'get').mockResolvedValue({
+      clientSubmissionId: 'draft-42',
+      title: 'Canal bouché',
+      description: 'Le canal déborde devant plusieurs maisons du quartier.',
+      categoryId: 1,
+      territoryId: 2,
+      locationText: 'Rue du marché',
+      priority: 'high',
+      consentAccepted: true,
+      updatedAt: '2026-07-20T12:00:00.000Z',
+    });
+
+    renderPage('/signalements/nouveau?brouillon=draft-42');
+
+    expect(
+      await screen.findByText('Brouillon repris. Vos informations ont été restaurées.'),
+    ).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Continuer' }));
+    expect(screen.getByLabelText('Titre du signalement')).toHaveValue('Canal bouché');
+  });
 });

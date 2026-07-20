@@ -1,6 +1,10 @@
+import { useQueryClient } from '@tanstack/react-query';
+import { useEffect } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../app/providers/use-auth';
+import { syncService, useNetworkStatus } from '../../offline';
 import { can } from '../../security/authorization';
+import { queryKeys } from '../../services';
 
 function navClass({ isActive }: { isActive: boolean }) {
   return `rounded-lg px-3 py-2 text-sm font-medium ${
@@ -11,6 +15,24 @@ function navClass({ isActive }: { isActive: boolean }) {
 export function AppShell() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const isOnline = useNetworkStatus();
+
+  useEffect(() => {
+    if (!isOnline || !syncService.isAutomaticSyncEnabled()) return;
+
+    void syncService
+      .synchronize()
+      .then(async (summary) => {
+        if (summary.processed === 0) return;
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: queryKeys.reports }),
+          queryClient.invalidateQueries({ queryKey: queryKeys.drafts }),
+          queryClient.invalidateQueries({ queryKey: queryKeys.syncQueue }),
+        ]);
+      })
+      .catch(() => undefined);
+  }, [isOnline, queryClient]);
 
   const handleLogout = async () => {
     try {
@@ -35,9 +57,14 @@ export function AppShell() {
               Signalements
             </NavLink>
             {can(user, 'report:create') && (
-              <NavLink to="/signalements/nouveau" className={navClass}>
-                Nouveau
-              </NavLink>
+              <>
+                <NavLink to="/signalements/nouveau" className={navClass}>
+                  Nouveau
+                </NavLink>
+                <NavLink to="/brouillons" className={navClass}>
+                  Brouillons
+                </NavLink>
+              </>
             )}
             <button
               type="button"
@@ -48,9 +75,22 @@ export function AppShell() {
             </button>
           </nav>
         </div>
-        <p className="mx-auto max-w-6xl px-4 pb-3 text-xs text-slate-500">
-          Connecté en tant que {user?.name} · {user?.role}
-        </p>
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-2 px-4 pb-3 text-xs text-slate-500">
+          <p>
+            Connecté en tant que {user?.name} · {user?.role}
+          </p>
+          <p
+            aria-live="polite"
+            className={`inline-flex items-center gap-2 rounded-full px-3 py-1 font-bold ${
+              isOnline ? 'bg-emerald-50 text-emerald-800' : 'bg-amber-50 text-amber-900'
+            }`}
+          >
+            <span
+              className={`size-2 rounded-full ${isOnline ? 'bg-emerald-500' : 'bg-amber-500'}`}
+            />
+            {isOnline ? 'En ligne' : 'Hors ligne · saisie disponible'}
+          </p>
+        </div>
       </header>
       <main className="mx-auto max-w-6xl px-4 py-8">
         <Outlet />

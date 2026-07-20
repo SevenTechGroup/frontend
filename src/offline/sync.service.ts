@@ -6,28 +6,61 @@ import type { SyncQueueItem, SyncSummary } from './types';
 
 const MAX_BACKOFF_MS = 15 * 60 * 1000;
 
-function nextAttempt(attempts: number): string {
+export function nextAttempt(attempts: number, now = Date.now()): string {
   const delay = Math.min(2 ** attempts * 1_000, MAX_BACKOFF_MS);
-  return new Date(Date.now() + delay).toISOString();
+  return new Date(now + delay).toISOString();
 }
 
 class SyncService {
   private activeRun: Promise<SyncSummary> | null = null;
+  private retryTimer: ReturnType<typeof setTimeout> | null = null;
 
   async enqueueReport(clientSubmissionId: string, payload: CreateReportInput): Promise<void> {
     const now = new Date().toISOString();
+    const existing = await offlineDatabase.syncQueue
+      .where('clientSubmissionId')
+      .equals(clientSubmissionId)
+      .first();
     const item: SyncQueueItem = {
-      id: crypto.randomUUID(),
+      id: existing?.id ?? crypto.randomUUID(),
       clientSubmissionId,
       operation: 'report.create',
       payload,
       state: 'pending',
-      attempts: 0,
-      createdAt: now,
+      attempts: existing?.attempts ?? 0,
+      createdAt: existing?.createdAt ?? now,
       nextAttemptAt: now,
     };
 
     await offlineDatabase.syncQueue.put(item);
+    await this.scheduleNextRun();
+  }
+
+  async list(): Promise<SyncQueueItem[]> {
+    return offlineDatabase.syncQueue.orderBy('createdAt').reverse().toArray();
+  }
+
+  async retry(id: string): Promise<void> {
+    await offlineDatabase.syncQueue.update(id, {
+      state: 'pending',
+      nextAttemptAt: new Date().toISOString(),
+      lastError: '',
+    });
+    await this.scheduleNextRun();
+  }
+
+  async remove(id: string): Promise<void> {
+    await offlineDatabase.syncQueue.delete(id);
+    await this.scheduleNextRun();
+  }
+
+  async removeBySubmission(clientSubmissionId: string): Promise<void> {
+    await offlineDatabase.syncQueue.where('clientSubmissionId').equals(clientSubmissionId).delete();
+    await this.scheduleNextRun();
+  }
+
+  isAutomaticSyncEnabled(): boolean {
+    return env.VITE_ENABLE_OFFLINE_SYNC;
   }
 
   synchronize(): Promise<SyncSummary> {
@@ -35,9 +68,14 @@ class SyncService {
       return Promise.resolve({ processed: 0, succeeded: 0, failed: 0, blocked: 0 });
     }
 
-    this.activeRun ??= this.run().finally(() => {
-      this.activeRun = null;
-    });
+    this.activeRun ??= this.run()
+      .then(async (summary) => {
+        await this.scheduleNextRun();
+        return summary;
+      })
+      .finally(() => {
+        this.activeRun = null;
+      });
 
     return this.activeRun;
   }
@@ -86,6 +124,26 @@ class SyncService {
     }
 
     return summary;
+  }
+
+  private async scheduleNextRun(): Promise<void> {
+    if (this.retryTimer !== null) {
+      clearTimeout(this.retryTimer);
+      this.retryTimer = null;
+    }
+    if (!env.VITE_ENABLE_OFFLINE_SYNC || !navigator.onLine) return;
+
+    const scheduled = await offlineDatabase.syncQueue
+      .filter((item) => ['pending', 'failed'].includes(item.state))
+      .sortBy('nextAttemptAt');
+    const next = scheduled[0];
+    if (!next) return;
+
+    const delay = Math.max(Date.parse(next.nextAttemptAt) - Date.now(), 0);
+    this.retryTimer = setTimeout(() => {
+      this.retryTimer = null;
+      void this.synchronize();
+    }, delay);
   }
 }
 

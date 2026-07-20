@@ -1,8 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import type { ReportPriority } from '../../../models';
-import { draftRepository, syncService } from '../../../offline';
+import { draftRepository, syncService, useNetworkStatus } from '../../../offline';
 import { queryKeys, referenceService, reportService, toApiError } from '../../../services';
 import {
   INITIAL_REPORT_FORM_VALUES,
@@ -128,13 +128,17 @@ function StepProgress({ currentStep }: { currentStep: number }) {
 
 export function NewReportPage() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const queryClient = useQueryClient();
+  const isOnline = useNetworkStatus();
   const formRef = useRef<HTMLFormElement>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
-  const [clientSubmissionId] = useState(() => crypto.randomUUID());
+  const requestedDraftId = searchParams.get('brouillon');
+  const [clientSubmissionId] = useState(() => requestedDraftId ?? crypto.randomUUID());
   const [currentStep, setCurrentStep] = useState(0);
   const [values, setValues] = useState<ReportFormValues>(INITIAL_REPORT_FORM_VALUES);
   const [fieldErrors, setFieldErrors] = useState<ReportFormErrors>({});
+  const [draftLoading, setDraftLoading] = useState(Boolean(requestedDraftId));
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -149,7 +153,11 @@ export function NewReportPage() {
   const createReport = useMutation({
     mutationFn: () => reportService.create(toCreateReportInput(values), clientSubmissionId),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: queryKeys.reports });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.reports }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.drafts }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.syncQueue }),
+      ]);
     },
   });
 
@@ -168,6 +176,41 @@ export function NewReportPage() {
   useEffect(() => {
     headingRef.current?.focus();
   }, [currentStep]);
+
+  useEffect(() => {
+    if (!requestedDraftId) return;
+    let cancelled = false;
+    setDraftLoading(true);
+
+    void draftRepository
+      .get(requestedDraftId)
+      .then((draft) => {
+        if (cancelled) return;
+        if (!draft) {
+          setError('Ce brouillon est introuvable sur cet appareil.');
+          return;
+        }
+        setValues({
+          categoryId: draft.categoryId?.toString() ?? '',
+          title: draft.title ?? '',
+          description: draft.description ?? '',
+          territoryId: draft.territoryId?.toString() ?? '',
+          locationText: draft.locationText ?? '',
+          priority: draft.priority ?? 'medium',
+        });
+        setNotice('Brouillon repris. Vos informations ont été restaurées.');
+      })
+      .catch((caught: unknown) => {
+        if (!cancelled) setError(toApiError(caught).message);
+      })
+      .finally(() => {
+        if (!cancelled) setDraftLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [requestedDraftId]);
 
   const updateValue = <Field extends ReportFormField>(
     field: Field,
@@ -217,6 +260,8 @@ export function NewReportPage() {
       ...(values.locationText.trim() ? { locationText: values.locationText.trim() } : {}),
       priority: values.priority,
     });
+    setSearchParams({ brouillon: clientSubmissionId }, { replace: true });
+    await queryClient.invalidateQueries({ queryKey: queryKeys.drafts });
     setNotice('Brouillon enregistré sur cet appareil. Vous pourrez le reprendre plus tard.');
   };
 
@@ -251,9 +296,10 @@ export function NewReportPage() {
     setError(null);
     setNotice(null);
     try {
-      if (!navigator.onLine) {
+      if (!isOnline) {
         await saveDraft();
         await syncService.enqueueReport(clientSubmissionId, toCreateReportInput(values));
+        await queryClient.invalidateQueries({ queryKey: queryKeys.syncQueue });
         setNotice(
           'Vous êtes hors ligne. Le signalement est conservé sur cet appareil et sera envoyé après reconnexion.',
         );
@@ -261,7 +307,10 @@ export function NewReportPage() {
       }
 
       await createReport.mutateAsync();
-      await draftRepository.remove(clientSubmissionId);
+      await Promise.all([
+        draftRepository.remove(clientSubmissionId),
+        syncService.removeBySubmission(clientSubmissionId),
+      ]);
       void navigate('/signalements');
     } catch (caught) {
       applyApiErrors(caught);
@@ -619,9 +668,9 @@ export function NewReportPage() {
                   </p>
                   <div className="mt-5 flex items-center gap-3 rounded-xl bg-white/70 px-4 py-3 text-sm font-semibold text-teal-950">
                     <span
-                      className={`size-2.5 rounded-full ${navigator.onLine ? 'bg-emerald-500' : 'bg-amber-500'}`}
+                      className={`size-2.5 rounded-full ${isOnline ? 'bg-emerald-500' : 'bg-amber-500'}`}
                     />
-                    {navigator.onLine ? 'Connexion disponible' : 'Mode hors ligne : envoi différé'}
+                    {isOnline ? 'Connexion disponible' : 'Mode hors ligne : envoi différé'}
                   </div>
                 </div>
               )}
@@ -643,7 +692,7 @@ export function NewReportPage() {
                   <button
                     type="button"
                     className="min-h-11 rounded-xl px-3 py-2 text-sm font-bold text-slate-500 hover:bg-slate-100 hover:text-teal-800"
-                    disabled={createReport.isPending}
+                    disabled={createReport.isPending || draftLoading}
                     onClick={() => void saveDraft().catch(applyApiErrors)}
                   >
                     Enregistrer le brouillon
@@ -653,7 +702,12 @@ export function NewReportPage() {
                 <button
                   className="button-primary inline-flex items-center justify-center gap-2 px-6"
                   type="submit"
-                  disabled={createReport.isPending || categories.isPending || territories.isPending}
+                  disabled={
+                    createReport.isPending ||
+                    draftLoading ||
+                    categories.isPending ||
+                    territories.isPending
+                  }
                 >
                   {createReport.isPending
                     ? 'Envoi en cours…'
