@@ -3,14 +3,15 @@ import { Link } from 'react-router-dom';
 interface BrandLogoProps {
   variant?: 'default' | 'light';
   compact?: boolean;
+  to?: string;
 }
 
-export function BrandLogo({ variant = 'default', compact = false }: BrandLogoProps) {
+export function BrandLogo({ variant = 'default', compact = false, to = '/' }: BrandLogoProps) {
   const isLight = variant === 'light';
 
   return (
     <Link
-      to="/"
+      to={to}
       className="group inline-flex items-center gap-2.5"
       aria-label="Sahel Signal — Accueil"
     >
