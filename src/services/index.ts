@@ -2,6 +2,12 @@ export { assignmentService } from './assignment.service';
 export { authService } from './auth.service';
 export { dashboardService } from './dashboard.service';
 export { notificationService } from './notification.service';
+export {
+  mergeRealtimeNotification,
+  notificationRealtimeService,
+  type NotificationRealtimeStatus,
+  type RealtimeNotificationEvent,
+} from './notification-realtime.service';
 export { queryKeys } from './query-keys';
 export { referenceService } from './reference.service';
 export { reportService } from './report.service';

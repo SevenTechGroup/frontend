@@ -1,12 +1,15 @@
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../app/providers/use-auth';
-import { syncService, useNetworkStatus } from '../../offline';
+import type { Notification } from '../../models';
+import { offlineDataCache, syncService, useNetworkStatus } from '../../offline';
 import { can } from '../../security/authorization';
 import {
   assignmentService,
   dashboardService,
+  mergeRealtimeNotification,
+  notificationRealtimeService,
   notificationService,
   queryKeys,
   referenceService,
@@ -28,6 +31,7 @@ interface NavigationItem {
   to: string;
   icon: NavIconName;
   label: string;
+  badge?: number;
 }
 
 function NavIcon({ name }: { name: NavIconName }) {
@@ -65,6 +69,19 @@ export function AppShell() {
   const queryClient = useQueryClient();
   const isOnline = useNetworkStatus();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [realtimeStatus, setRealtimeStatus] = useState<
+    'disabled' | 'connected' | 'disconnected' | 'connecting' | 'reconnecting' | 'failed'
+  >('disabled');
+  const [liveAnnouncement, setLiveAnnouncement] = useState<string | null>(null);
+  const notifications = useQuery({
+    queryKey: queryKeys.notifications,
+    queryFn: () => notificationService.list(),
+    enabled: Boolean(user),
+    staleTime: 60_000,
+    refetchInterval: isOnline && realtimeStatus !== 'connected' ? 30_000 : false,
+  });
+  const unreadCount =
+    notifications.data?.filter((notification) => !notification.is_read).length ?? 0;
   const initials =
     user?.name
       .split(' ')
@@ -102,11 +119,6 @@ export function AppShell() {
       queryClient.fetchQuery({
         queryKey: queryKeys.dashboard,
         queryFn: () => dashboardService.get(),
-        staleTime: 60_000,
-      }),
-      queryClient.fetchQuery({
-        queryKey: queryKeys.notifications,
-        queryFn: () => notificationService.list(),
         staleTime: 60_000,
       }),
       queryClient.fetchQuery({
@@ -162,6 +174,52 @@ export function AppShell() {
   }, [isOnline, queryClient, user]);
 
   useEffect(() => {
+    if (!isOnline || !user) return;
+
+    let isActive = true;
+    let disconnect: (() => void) | undefined;
+
+    void notificationRealtimeService
+      .connect(user.id, {
+        onStatus(status) {
+          if (isActive) setRealtimeStatus(status);
+        },
+        onEvent(event) {
+          if (!isActive) return;
+
+          let updatedCache: Notification[] | undefined;
+          queryClient.setQueryData<Notification[]>(queryKeys.notifications, (current) => {
+            updatedCache = mergeRealtimeNotification(current, event);
+            return updatedCache;
+          });
+
+          if (updatedCache) void offlineDataCache.store('notifications', updatedCache);
+          void queryClient.invalidateQueries({ queryKey: queryKeys.dashboard });
+
+          if (event.action === 'created' && !event.notification.is_read) {
+            setLiveAnnouncement(event.notification.message);
+          }
+        },
+      })
+      .then((subscription) => {
+        if (!subscription) return;
+        if (!isActive) {
+          subscription.disconnect();
+          return;
+        }
+        disconnect = () => subscription.disconnect();
+      })
+      .catch(() => {
+        if (isActive) setRealtimeStatus('failed');
+      });
+
+    return () => {
+      isActive = false;
+      disconnect?.();
+    };
+  }, [isOnline, queryClient, user]);
+
+  useEffect(() => {
     if (!isMenuOpen) return;
 
     const closeOnEscape = (event: KeyboardEvent) => {
@@ -189,7 +247,12 @@ export function AppShell() {
     navigationItems.push({ to: '/affectations', icon: 'assignments', label: 'Affectations' });
   }
 
-  navigationItems.push({ to: '/notifications', icon: 'notifications', label: 'Notifications' });
+  navigationItems.push({
+    to: '/notifications',
+    icon: 'notifications',
+    label: 'Notifications',
+    badge: unreadCount,
+  });
 
   if (can(user, 'report:create')) {
     navigationItems.push(
@@ -219,6 +282,14 @@ export function AppShell() {
               <NavLink key={item.to} to={item.to} className={navClass}>
                 <NavIcon name={item.icon} />
                 {item.label}
+                {Boolean(item.badge) && (
+                  <span
+                    className="grid min-w-5 place-items-center rounded-full bg-amber-400 px-1.5 py-0.5 text-[10px] font-black leading-none text-teal-950"
+                    aria-label={`${item.badge} notification${item.badge === 1 ? '' : 's'} non lue${item.badge === 1 ? '' : 's'}`}
+                  >
+                    {item.badge && item.badge > 99 ? '99+' : item.badge}
+                  </span>
+                )}
               </NavLink>
             ))}
           </nav>
@@ -226,6 +297,13 @@ export function AppShell() {
           <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
             <span
               aria-live="polite"
+              title={
+                !isOnline
+                  ? 'Connexion réseau indisponible'
+                  : realtimeStatus === 'connected'
+                    ? 'Notifications WebSocket actives'
+                    : 'Les notifications sont actualisées périodiquement'
+              }
               className={`hidden items-center gap-2 rounded-full px-3 py-2 text-xs font-black sm:inline-flex ${
                 isOnline ? 'bg-emerald-50 text-emerald-800' : 'bg-amber-50 text-amber-900'
               }`}
@@ -233,7 +311,13 @@ export function AppShell() {
               <span
                 className={`size-2 rounded-full ${isOnline ? 'bg-emerald-500' : 'bg-amber-500'}`}
               />
-              <span className="hidden 2xl:inline">{isOnline ? 'En ligne' : 'Hors ligne'}</span>
+              <span className="hidden 2xl:inline">
+                {!isOnline
+                  ? 'Hors ligne'
+                  : realtimeStatus === 'connected'
+                    ? 'Temps réel'
+                    : 'En ligne'}
+              </span>
             </span>
 
             <div className="hidden items-center gap-2 border-l border-slate-200 pl-3 sm:flex">
@@ -307,6 +391,11 @@ export function AppShell() {
                 >
                   <NavIcon name={item.icon} />
                   {item.label}
+                  {Boolean(item.badge) && (
+                    <span className="ml-auto grid min-w-5 place-items-center rounded-full bg-amber-400 px-1.5 py-0.5 text-[10px] font-black leading-none text-teal-950">
+                      {item.badge && item.badge > 99 ? '99+' : item.badge}
+                    </span>
+                  )}
                 </NavLink>
               ))}
             </nav>
@@ -341,6 +430,46 @@ export function AppShell() {
           </p>
         )}
       </header>
+
+      {liveAnnouncement && (
+        <aside
+          className="fixed bottom-5 right-5 z-[60] w-[min(24rem,calc(100vw-2.5rem))] rounded-2xl border border-emerald-200 bg-white p-4 shadow-2xl shadow-slate-900/20"
+          role="status"
+          aria-live="polite"
+        >
+          <div className="flex items-start gap-3">
+            <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-emerald-100 font-black text-emerald-800">
+              !
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-black uppercase tracking-[0.14em] text-emerald-700">
+                Nouvelle notification
+              </p>
+              <p className="mt-1 line-clamp-2 text-sm font-bold leading-5 text-slate-900">
+                {liveAnnouncement}
+              </p>
+              <button
+                type="button"
+                className="mt-3 text-xs font-black text-teal-800 underline underline-offset-4"
+                onClick={() => {
+                  setLiveAnnouncement(null);
+                  void navigate('/notifications');
+                }}
+              >
+                Ouvrir les notifications
+              </button>
+            </div>
+            <button
+              type="button"
+              className="grid size-8 shrink-0 place-items-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+              onClick={() => setLiveAnnouncement(null)}
+              aria-label="Fermer la notification"
+            >
+              ×
+            </button>
+          </div>
+        </aside>
+      )}
 
       <main className="relative mx-auto max-w-7xl px-4 py-7 sm:px-6 sm:py-10 lg:px-8">
         <Outlet />
