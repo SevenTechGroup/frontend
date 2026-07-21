@@ -1,4 +1,4 @@
-import type { ApiDataResponse, Category, Territory } from '../models';
+import type { ApiDataResponse, Category, Territory, User } from '../models';
 import { httpClient } from './api/http-client';
 
 class ReferenceService {
@@ -9,6 +9,11 @@ class ReferenceService {
 
   async territories(): Promise<Territory[]> {
     const { data } = await httpClient.get<ApiDataResponse<Territory[]>>('/territories');
+    return data.data;
+  }
+
+  async agents(): Promise<User[]> {
+    const { data } = await httpClient.get<ApiDataResponse<User[]>>('/agents');
     return data.data;
   }
 }

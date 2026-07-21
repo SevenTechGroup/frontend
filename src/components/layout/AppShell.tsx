@@ -15,10 +15,16 @@ function navClass({ isActive }: { isActive: boolean }) {
   }`;
 }
 
-function NavIcon({ name }: { name: 'dashboard' | 'reports' | 'new' | 'drafts' }) {
+function NavIcon({
+  name,
+}: {
+  name: 'dashboard' | 'reports' | 'assignments' | 'notifications' | 'new' | 'drafts';
+}) {
   const paths = {
     dashboard: 'M4 13h6V4H4v9Zm10 7h6v-9h-6v9ZM4 20h6v-3H4v3Zm10-13h6V4h-6v3Z',
     reports: 'M7 3h8l4 4v14H7V3Zm8 0v5h4M10 12h6m-6 4h6',
+    assignments: 'M8 6h11v14H5V6h3Zm0 0V4h6v2M9 11h6m-6 4h4',
+    notifications: 'M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9Zm-8 12h4',
     new: 'M12 5v14M5 12h14',
     drafts: 'M5 4h14v16H5V4Zm4 4h6m-6 4h6m-6 4h4',
   } as const;
@@ -103,6 +109,16 @@ export function AppShell() {
             <NavLink to="/signalements" className={navClass}>
               <NavIcon name="reports" />
               Signalements
+            </NavLink>
+            {can(user, 'assignment:view') && (
+              <NavLink to="/affectations" className={navClass}>
+                <NavIcon name="assignments" />
+                Affectations
+              </NavLink>
+            )}
+            <NavLink to="/notifications" className={navClass}>
+              <NavIcon name="notifications" />
+              Notifications
             </NavLink>
             {can(user, 'report:create') && (
               <>

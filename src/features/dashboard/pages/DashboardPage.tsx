@@ -136,6 +136,64 @@ export function DashboardPage() {
     day: 'numeric',
     month: 'long',
   }).format(new Date());
+  const canViewAssignments = can(user, 'assignment:view');
+  const canCreateAssignments = can(user, 'assignment:create');
+  const primaryAction = canCreateAssignments
+    ? { to: '/affectations', label: 'Affecter un dossier' }
+    : canViewAssignments
+      ? { to: '/affectations', label: 'Voir mes affectations' }
+      : { to: '/signalements/nouveau', label: 'Nouveau signalement' };
+  const heroMessage = canCreateAssignments
+    ? 'pilotez les interventions.'
+    : canViewAssignments
+      ? 'vos missions vous attendent.'
+      : 'que souhaitez-vous signaler ?';
+  const heroDescription = canCreateAssignments
+    ? 'Supervisez les dossiers, répartissez le travail et suivez les indicateurs de l’équipe.'
+    : canViewAssignments
+      ? 'Retrouvez vos dossiers affectés, mettez leur état à jour et consultez les nouvelles notifications.'
+      : 'Retrouvez vos dossiers, suivez leur traitement et transmettez une nouvelle alerte en quelques étapes.';
+  const quickActions = canViewAssignments
+    ? [
+        {
+          to: '/affectations',
+          label: canCreateAssignments ? 'Gérer les affectations' : 'Mes affectations',
+          detail: canCreateAssignments ? 'Répartir les dossiers' : 'Avancer mes interventions',
+          icon: 'assignments' as const,
+        },
+        {
+          to: '/signalements',
+          label: 'File des signalements',
+          detail: 'Rechercher et filtrer les dossiers',
+          icon: 'reports' as const,
+        },
+        {
+          to: '/notifications',
+          label: 'Centre de notifications',
+          detail: 'Consulter les nouvelles alertes',
+          icon: 'notifications' as const,
+        },
+      ]
+    : [
+        {
+          to: '/signalements/nouveau',
+          label: 'Créer une alerte',
+          detail: 'Parcours guidé en 5 étapes',
+          icon: 'reports' as const,
+        },
+        {
+          to: '/signalements',
+          label: 'Suivre mes dossiers',
+          detail: 'Consulter les changements',
+          icon: 'mine' as const,
+        },
+        {
+          to: '/brouillons',
+          label: 'Reprendre un brouillon',
+          detail: 'Continuer même hors ligne',
+          icon: 'tasks' as const,
+        },
+      ];
 
   return (
     <section>
@@ -157,25 +215,21 @@ export function DashboardPage() {
           <div>
             <p className="text-sm font-bold capitalize text-teal-200">{today}</p>
             <h1 className="mt-3 text-3xl font-black leading-tight tracking-[-0.035em] sm:text-5xl">
-              Bonjour {firstName},
-              <span className="block text-teal-100/75">que souhaitez-vous signaler ?</span>
+              Bonjour {firstName},<span className="block text-teal-100/75">{heroMessage}</span>
             </h1>
             <p className="mt-4 max-w-2xl text-sm leading-6 text-teal-100/70 sm:text-base">
-              Retrouvez vos dossiers, suivez leur traitement et transmettez une nouvelle alerte en
-              quelques étapes.
+              {heroDescription}
             </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
-            {can(user, 'report:create') && (
-              <Link
-                to="/signalements/nouveau"
-                className="inline-flex min-h-12 items-center gap-2 rounded-xl bg-amber-400 px-5 py-3 font-black text-amber-950 shadow-lg shadow-black/15 transition hover:-translate-y-0.5 hover:bg-amber-300"
-              >
-                <span className="text-xl leading-none">+</span>
-                Nouveau signalement
-              </Link>
-            )}
+            <Link
+              to={primaryAction.to}
+              className="inline-flex min-h-12 items-center gap-2 rounded-xl bg-amber-400 px-5 py-3 font-black text-amber-950 shadow-lg shadow-black/15 transition hover:-translate-y-0.5 hover:bg-amber-300"
+            >
+              <span className="text-xl leading-none">+</span>
+              {primaryAction.label}
+            </Link>
             <Link
               to="/signalements"
               className="inline-flex min-h-12 items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-5 py-3 font-bold text-white backdrop-blur transition hover:bg-white/15"
@@ -233,26 +287,7 @@ export function DashboardPage() {
             Actions rapides
           </h2>
           <div className="mt-5 grid gap-3 sm:grid-cols-3">
-            {[
-              {
-                to: '/signalements/nouveau',
-                label: 'Créer une alerte',
-                detail: 'Parcours guidé en 5 étapes',
-                icon: 'reports' as const,
-              },
-              {
-                to: '/signalements',
-                label: 'Suivre mes dossiers',
-                detail: 'Consulter les changements',
-                icon: 'mine' as const,
-              },
-              {
-                to: '/brouillons',
-                label: 'Reprendre un brouillon',
-                detail: 'Continuer même hors ligne',
-                icon: 'tasks' as const,
-              },
-            ].map((action) => (
+            {quickActions.map((action) => (
               <Link
                 key={action.to}
                 to={action.to}
