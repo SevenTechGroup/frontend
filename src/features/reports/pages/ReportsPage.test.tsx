@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
   user: null as User | null,
   list: vi.fn(),
   update: vi.fn(),
+  getAttachmentContent: vi.fn(),
 }));
 
 vi.mock('../../../app/providers/use-auth', () => ({
@@ -21,10 +22,12 @@ vi.mock('../../../services', () => ({
   queryKeys: {
     reports: ['reports'],
     dashboard: ['dashboard'],
+    attachmentContent: (id: number) => ['attachments', id, 'content'],
   },
   reportService: {
     list: mocks.list,
     update: mocks.update,
+    getAttachmentContent: mocks.getAttachmentContent,
   },
   toApiError: (error: unknown) => ({
     message: error instanceof Error ? error.message : 'Erreur inattendue',
@@ -51,6 +54,23 @@ const reports: Report[] = [
       is_active: true,
     },
     territory: { id: 10, name: 'Dakar Plateau', code: 'DKR', is_active: true },
+    attachments: [
+      {
+        id: 17,
+        report_id: 41,
+        provider: 'cloudinary',
+        resource_type: 'image',
+        delivery_type: 'authenticated',
+        format: 'jpg',
+        mime_type: 'image/jpeg',
+        original_filename: 'route-inondee.jpg',
+        bytes: 450000,
+        width: 900,
+        height: 600,
+        created_at: '2026-07-20T10:00:00.000Z',
+        updated_at: '2026-07-20T10:00:00.000Z',
+      },
+    ],
     created_at: '2026-07-20T10:00:00.000Z',
     updated_at: '2026-07-20T10:00:00.000Z',
   },
@@ -102,6 +122,7 @@ describe('ReportsPage', () => {
     vi.clearAllMocks();
     mocks.user = { id: 1, name: 'Awa', email: 'awa@example.test', role: 'citizen' };
     mocks.list.mockResolvedValue(reports);
+    mocks.getAttachmentContent.mockResolvedValue(new Blob(['photo'], { type: 'image/jpeg' }));
     mocks.update.mockImplementation((id: number, input: { status: string }) =>
       Promise.resolve({
         ...reports.find((report) => report.id === id),
@@ -117,6 +138,14 @@ describe('ReportsPage', () => {
     expect(await screen.findByRole('heading', { name: 'Mes signalements' })).toBeInTheDocument();
     expect(screen.getByText('Route inondée')).toBeInTheDocument();
     expect(screen.getByText('Canal bouché')).toBeInTheDocument();
+    expect(
+      await screen.findByRole('img', {
+        name: 'Preuve photographique du signalement « Route inondée »',
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText('Photo transmise par le citoyen avec ce signalement.'),
+    ).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Prendre en charge' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Marquer comme résolu' })).not.toBeInTheDocument();
 

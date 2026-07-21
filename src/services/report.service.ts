@@ -36,6 +36,14 @@ class ReportService {
     return data.data;
   }
 
+  async getAttachmentContent(id: number): Promise<Blob> {
+    const { data } = await httpClient.get<Blob>(`/attachments/${id}/content`, {
+      responseType: 'blob',
+    });
+
+    return data;
+  }
+
   private toMultipartPayload(input: CreateReportInput, evidence: CreateReportEvidence): FormData {
     const payload = new FormData();
     payload.append('title', input.title);

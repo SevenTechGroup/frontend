@@ -5,6 +5,7 @@ import { useAuth } from '../../../app/providers/use-auth';
 import type { ReportPriority, ReportStatus, UpdateReportInput } from '../../../models';
 import { can } from '../../../security/authorization';
 import { queryKeys, reportService, toApiError } from '../../../services';
+import { ReportPhoto } from '../components/ReportPhoto';
 
 const statusMeta: Record<ReportStatus, { label: string; className: string }> = {
   received: { label: 'Reçu', className: 'bg-sky-50 text-sky-800 ring-sky-200' },
@@ -134,6 +135,9 @@ export function ReportDetailPage() {
 
   const current = report.data;
   const transition = nextStatus(current.status);
+  const photos = (current.attachments ?? []).filter((attachment) =>
+    attachment.mime_type.startsWith('image/'),
+  );
 
   return (
     <section>
@@ -185,6 +189,31 @@ export function ReportDetailPage() {
 
       <div className="mt-6 grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_22rem]">
         <div className="space-y-5">
+          {photos.length > 0 && (
+            <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-7">
+              <p className="text-xs font-black uppercase tracking-[0.14em] text-teal-700">
+                Preuve photographique
+              </p>
+              <h2 className="mt-1 text-xl font-black text-slate-950">
+                Photo transmise avec le signalement
+              </h2>
+              <p className="mt-2 text-sm leading-6 text-slate-500">
+                Cette image documente la situation observée sur le terrain. Son accès est réservé
+                aux utilisateurs autorisés à consulter ce dossier.
+              </p>
+              <div className="mt-5 grid gap-4">
+                {photos.map((attachment, index) => (
+                  <ReportPhoto
+                    key={attachment.id}
+                    attachment={attachment}
+                    alt={`Preuve photographique ${index + 1} du signalement « ${current.title} »`}
+                    variant="detail"
+                  />
+                ))}
+              </div>
+            </article>
+          )}
+
           <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-7">
             <p className="text-xs font-black uppercase tracking-[0.14em] text-teal-700">
               Description

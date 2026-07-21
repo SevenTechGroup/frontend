@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { reportService } from './report.service';
 
-const { postMock } = vi.hoisted(() => ({
+const { getMock, postMock } = vi.hoisted(() => ({
+  getMock: vi.fn<(url: string, config?: unknown) => Promise<{ data: unknown }>>(),
   postMock:
     vi.fn<
       (url: string, payload: unknown, config?: unknown) => Promise<{ data: { data: unknown } }>
@@ -11,7 +12,7 @@ const { postMock } = vi.hoisted(() => ({
 vi.mock('./api/http-client', () => ({
   httpClient: {
     post: postMock,
-    get: vi.fn(),
+    get: getMock,
     put: vi.fn(),
   },
 }));
@@ -32,8 +33,19 @@ const report = {
 
 describe('ReportService evidence upload', () => {
   beforeEach(() => {
+    getMock.mockReset();
     postMock.mockReset();
     postMock.mockResolvedValue({ data: { data: report } });
+  });
+
+  it('récupère une photo privée sous forme de blob authentifié', async () => {
+    const photo = new Blob(['private-photo'], { type: 'image/jpeg' });
+    getMock.mockResolvedValueOnce({ data: photo });
+
+    await expect(reportService.getAttachmentContent(17)).resolves.toBe(photo);
+    expect(getMock).toHaveBeenCalledWith('/attachments/17/content', {
+      responseType: 'blob',
+    });
   });
 
   it('envoie la photo et la position consentie en multipart', async () => {

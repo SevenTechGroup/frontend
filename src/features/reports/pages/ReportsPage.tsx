@@ -5,6 +5,7 @@ import { useAuth } from '../../../app/providers/use-auth';
 import type { Report, ReportPriority, ReportStatus } from '../../../models';
 import { can } from '../../../security/authorization';
 import { queryKeys, reportService, toApiError } from '../../../services';
+import { ReportPhoto } from '../components/ReportPhoto';
 
 const statusMeta: Record<ReportStatus, { label: string; className: string }> = {
   received: { label: 'Reçu', className: 'bg-sky-50 text-sky-800 ring-sky-200' },
@@ -288,6 +289,9 @@ export function ReportsPage() {
         <ul className="mt-6 grid gap-4 lg:grid-cols-2">
           {filteredReports.map((report) => {
             const transition = nextStatus(report);
+            const primaryPhoto = report.attachments?.find((attachment) =>
+              attachment.mime_type.startsWith('image/'),
+            );
             const isUpdating =
               updateStatus.isPending && updateStatus.variables?.reportId === report.id;
 
@@ -318,6 +322,18 @@ export function ReportsPage() {
                     </span>
                   </div>
                 </div>
+
+                {primaryPhoto && (
+                  <figure className="mt-4">
+                    <ReportPhoto
+                      attachment={primaryPhoto}
+                      alt={`Preuve photographique du signalement « ${report.title} »`}
+                    />
+                    <figcaption className="mt-2 text-xs font-bold text-slate-500">
+                      Photo transmise par le citoyen avec ce signalement.
+                    </figcaption>
+                  </figure>
+                )}
 
                 <p className="mt-4 line-clamp-3 break-words text-sm leading-6 text-slate-600">
                   {report.description}
