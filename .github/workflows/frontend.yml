@@ -57,7 +57,7 @@ jobs:
       - name: Build production PWA
         env:
           VITE_ENABLE_OFFLINE_SYNC: 'true'
-        run: npm run build
+        run: npm run build:cloudflare
 
       - name: Upload production bundle
         uses: actions/upload-artifact@v4

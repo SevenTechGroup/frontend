@@ -1,5 +1,54 @@
 # Déploiement du frontend PWA
 
+## Production sur Cloudflare Pages
+
+Cloudflare Pages est la cible recommandée pour cette PWA statique. Créer un
+projet Pages depuis le dépôt GitHub `SevenTechGroup/frontend`, puis utiliser :
+
+| Réglage               | Valeur                     |
+| --------------------- | -------------------------- |
+| Branche de production | `main`                     |
+| Framework             | React (Vite)               |
+| Commande de build     | `npm run build:cloudflare` |
+| Dossier de sortie     | `dist`                     |
+
+La version Node est fixée par `.node-version`. Ajouter ensuite les variables de
+production suivantes dans **Settings → Environment variables** :
+
+```dotenv
+VITE_API_URL=https://<domaine-api>.laravel.cloud/api
+VITE_ENABLE_OFFLINE_SYNC=true
+```
+
+`VITE_API_URL` est une configuration publique intégrée au bundle, jamais un
+secret. Le build Cloudflare la valide et génère `dist/_headers` avec :
+
+- une CSP qui autorise uniquement l’origine de cette API et Cloudinary pour les
+  médias ;
+- les protections HSTS, anti-iframe, MIME, referrer et permissions ;
+- un cache immuable pour les assets versionnés ;
+- l’absence de cache durable pour le service worker et le manifeste.
+
+Cloudflare Pages applique nativement le fallback de routage SPA lorsqu’aucun
+fichier `404.html` n’est présent. Les routes telles que `/connexion` sont donc
+servies par l’application React sans fichier `_redirects` supplémentaire.
+
+Après le premier déploiement, copier l’origine exacte `https://<projet>.pages.dev`
+dans `CORS_ALLOWED_ORIGINS` sur Laravel Cloud, puis redéployer le backend. Si un
+domaine frontend personnalisé est ajouté, remplacer ou compléter cette liste
+avec son origine HTTPS exacte.
+
+Contrôles après mise en ligne :
+
+```powershell
+Invoke-WebRequest https://<projet>.pages.dev/connexion
+(Invoke-WebRequest -Method Head https://<projet>.pages.dev).Headers
+Invoke-WebRequest https://<domaine-api>.laravel.cloud/api/categories
+```
+
+La page doit répondre avec `Content-Security-Policy` et l’appel API depuis le
+navigateur ne doit produire aucune erreur CORS.
+
 ## Contrôles CI
 
 Le workflow `.github/workflows/frontend.yml` s'exécute sur chaque pull request
