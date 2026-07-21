@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../app/providers/use-auth';
 import { syncService, useNetworkStatus } from '../../offline';
@@ -15,18 +15,22 @@ import {
 import { BrandLogo } from '../brand/BrandLogo';
 
 function navClass({ isActive }: { isActive: boolean }) {
-  return `group inline-flex min-h-10 shrink-0 items-center gap-2 rounded-xl px-3.5 py-2 text-sm font-bold transition ${
+  return `group inline-flex min-h-10 items-center gap-2 rounded-xl px-3 py-2 text-[13px] font-bold transition 2xl:px-3.5 2xl:text-sm ${
     isActive
       ? 'bg-teal-800 text-white shadow-lg shadow-teal-900/15'
       : 'text-slate-600 hover:bg-teal-50 hover:text-teal-900'
   }`;
 }
 
-function NavIcon({
-  name,
-}: {
-  name: 'dashboard' | 'reports' | 'assignments' | 'notifications' | 'new' | 'drafts';
-}) {
+type NavIconName = 'dashboard' | 'reports' | 'assignments' | 'notifications' | 'new' | 'drafts';
+
+interface NavigationItem {
+  to: string;
+  icon: NavIconName;
+  label: string;
+}
+
+function NavIcon({ name }: { name: NavIconName }) {
   const paths = {
     dashboard: 'M4 13h6V4H4v9Zm10 7h6v-9h-6v9ZM4 20h6v-3H4v3Zm10-13h6V4h-6v3Z',
     reports: 'M7 3h8l4 4v14H7V3Zm8 0v5h4M10 12h6m-6 4h6',
@@ -60,6 +64,7 @@ export function AppShell() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const isOnline = useNetworkStatus();
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const initials =
     user?.name
       .split(' ')
@@ -156,6 +161,17 @@ export function AppShell() {
       .catch(() => undefined);
   }, [isOnline, queryClient, user]);
 
+  useEffect(() => {
+    if (!isMenuOpen) return;
+
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setIsMenuOpen(false);
+    };
+
+    window.addEventListener('keydown', closeOnEscape);
+    return () => window.removeEventListener('keydown', closeOnEscape);
+  }, [isMenuOpen]);
+
   const handleLogout = async () => {
     try {
       await logout();
@@ -163,6 +179,24 @@ export function AppShell() {
       void navigate('/connexion', { replace: true });
     }
   };
+
+  const navigationItems: NavigationItem[] = [
+    { to: '/tableau-de-bord', icon: 'dashboard', label: 'Tableau de bord' },
+    { to: '/signalements', icon: 'reports', label: 'Signalements' },
+  ];
+
+  if (can(user, 'assignment:view')) {
+    navigationItems.push({ to: '/affectations', icon: 'assignments', label: 'Affectations' });
+  }
+
+  navigationItems.push({ to: '/notifications', icon: 'notifications', label: 'Notifications' });
+
+  if (can(user, 'report:create')) {
+    navigationItems.push(
+      { to: '/signalements/nouveau', icon: 'new', label: 'Nouveau' },
+      { to: '/brouillons', icon: 'drafts', label: 'Brouillons' },
+    );
+  }
 
   return (
     <div className="relative min-h-screen overflow-x-hidden bg-[#f4f8f7] text-slate-950">
@@ -172,48 +206,24 @@ export function AppShell() {
       />
 
       <header className="sticky top-0 z-50 border-b border-slate-200/80 bg-white/90 shadow-[0_8px_30px_-24px_rgba(15,23,42,0.45)] backdrop-blur-xl">
-        <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-3 px-4 py-3 sm:px-6 lg:flex-nowrap lg:gap-6">
-          <div className="mr-auto shrink-0">
+        <div className="mx-auto flex max-w-[100rem] items-center gap-2 px-4 py-3 sm:gap-3 sm:px-6 xl:gap-4">
+          <div className="mr-auto shrink-0 xl:mr-0">
             <BrandLogo to="/tableau-de-bord" />
           </div>
 
           <nav
-            className="order-3 flex w-full items-center gap-1 overflow-x-auto pb-0.5 lg:order-none lg:w-auto lg:overflow-visible lg:pb-0"
+            className="hidden min-w-0 flex-1 items-center justify-center gap-0.5 xl:flex 2xl:gap-1"
             aria-label="Navigation principale"
           >
-            <NavLink to="/tableau-de-bord" className={navClass}>
-              <NavIcon name="dashboard" />
-              Tableau de bord
-            </NavLink>
-            <NavLink to="/signalements" className={navClass}>
-              <NavIcon name="reports" />
-              Signalements
-            </NavLink>
-            {can(user, 'assignment:view') && (
-              <NavLink to="/affectations" className={navClass}>
-                <NavIcon name="assignments" />
-                Affectations
+            {navigationItems.map((item) => (
+              <NavLink key={item.to} to={item.to} className={navClass}>
+                <NavIcon name={item.icon} />
+                {item.label}
               </NavLink>
-            )}
-            <NavLink to="/notifications" className={navClass}>
-              <NavIcon name="notifications" />
-              Notifications
-            </NavLink>
-            {can(user, 'report:create') && (
-              <>
-                <NavLink to="/signalements/nouveau" className={navClass}>
-                  <NavIcon name="new" />
-                  Nouveau
-                </NavLink>
-                <NavLink to="/brouillons" className={navClass}>
-                  <NavIcon name="drafts" />
-                  Brouillons
-                </NavLink>
-              </>
-            )}
+            ))}
           </nav>
 
-          <div className="ml-auto flex shrink-0 items-center gap-2">
+          <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
             <span
               aria-live="polite"
               className={`hidden items-center gap-2 rounded-full px-3 py-2 text-xs font-black sm:inline-flex ${
@@ -223,14 +233,14 @@ export function AppShell() {
               <span
                 className={`size-2 rounded-full ${isOnline ? 'bg-emerald-500' : 'bg-amber-500'}`}
               />
-              {isOnline ? 'En ligne' : 'Hors ligne'}
+              <span className="hidden 2xl:inline">{isOnline ? 'En ligne' : 'Hors ligne'}</span>
             </span>
 
-            <div className="hidden items-center gap-2 border-l border-slate-200 pl-3 md:flex">
+            <div className="hidden items-center gap-2 border-l border-slate-200 pl-3 sm:flex">
               <span className="grid size-10 place-items-center rounded-xl bg-gradient-to-br from-teal-700 to-emerald-600 text-sm font-black text-white shadow-lg shadow-teal-900/15">
                 {initials}
               </span>
-              <span className="max-w-32 leading-tight">
+              <span className="hidden max-w-32 leading-tight 2xl:block">
                 <strong className="block truncate text-sm font-black text-slate-900">
                   {user?.name}
                 </strong>
@@ -242,7 +252,7 @@ export function AppShell() {
 
             <button
               type="button"
-              className="grid size-10 place-items-center rounded-xl text-slate-500 transition hover:bg-rose-50 hover:text-rose-700"
+              className="hidden size-10 place-items-center rounded-xl text-slate-500 transition hover:bg-rose-50 hover:text-rose-700 xl:grid"
               onClick={() => void handleLogout()}
               aria-label="Se déconnecter"
               title="Déconnexion"
@@ -257,8 +267,69 @@ export function AppShell() {
                 />
               </svg>
             </button>
+
+            <button
+              type="button"
+              className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-sm font-black text-slate-700 shadow-sm transition hover:border-teal-200 hover:bg-teal-50 hover:text-teal-900 xl:hidden"
+              aria-expanded={isMenuOpen}
+              aria-controls="menu-principal-mobile"
+              aria-label={isMenuOpen ? 'Fermer le menu' : 'Ouvrir le menu'}
+              onClick={() => setIsMenuOpen((open) => !open)}
+            >
+              <svg className="size-5" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path
+                  d={isMenuOpen ? 'M6 6l12 12M18 6 6 18' : 'M4 7h16M4 12h16M4 17h16'}
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                />
+              </svg>
+              <span className="hidden sm:inline">Menu</span>
+            </button>
           </div>
         </div>
+
+        {isMenuOpen && (
+          <div
+            id="menu-principal-mobile"
+            className="border-t border-slate-200 bg-white px-4 py-4 shadow-xl shadow-slate-900/10 sm:px-6 xl:hidden"
+          >
+            <nav
+              className="mx-auto grid max-w-4xl gap-1 sm:grid-cols-2"
+              aria-label="Navigation principale mobile"
+            >
+              {navigationItems.map((item) => (
+                <NavLink
+                  key={item.to}
+                  to={item.to}
+                  className={navClass}
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  <NavIcon name={item.icon} />
+                  {item.label}
+                </NavLink>
+              ))}
+            </nav>
+
+            <div className="mx-auto mt-4 flex max-w-4xl items-center justify-between gap-3 border-t border-slate-100 pt-4">
+              <div className="min-w-0">
+                <strong className="block truncate text-sm font-black text-slate-900">
+                  {user?.name}
+                </strong>
+                <span className="text-xs font-semibold text-slate-500">
+                  {user ? roleLabels[user.role] : ''}
+                </span>
+              </div>
+              <button
+                type="button"
+                className="inline-flex min-h-10 shrink-0 items-center gap-2 rounded-xl bg-rose-50 px-4 text-sm font-black text-rose-700 transition hover:bg-rose-100"
+                onClick={() => void handleLogout()}
+              >
+                Se déconnecter
+              </button>
+            </div>
+          </div>
+        )}
 
         {!isOnline && (
           <p
