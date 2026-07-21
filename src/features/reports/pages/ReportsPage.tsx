@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../../../app/providers/use-auth';
 import type { Report, ReportPriority, ReportStatus } from '../../../models';
 import { can } from '../../../security/authorization';
@@ -357,8 +358,14 @@ export function ReportsPage() {
                   </div>
                 </dl>
 
-                {canManageReports && transition && (
-                  <div className="mt-auto flex justify-end border-t border-slate-100 pt-5">
+                <div className="mt-auto flex flex-wrap justify-end gap-3 border-t border-slate-100 pt-5">
+                  <Link
+                    to={`/signalements/${report.id}`}
+                    className="button-secondary inline-flex w-full items-center justify-center sm:w-auto"
+                  >
+                    Voir le dossier
+                  </Link>
+                  {canManageReports && transition && (
                     <button
                       type="button"
                       className="button-primary w-full sm:w-auto"
@@ -373,8 +380,8 @@ export function ReportsPage() {
                           ? 'Prendre en charge'
                           : 'Marquer comme résolu'}
                     </button>
-                  </div>
-                )}
+                  )}
+                </div>
               </li>
             );
           })}

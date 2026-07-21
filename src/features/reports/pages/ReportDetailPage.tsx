@@ -1,0 +1,309 @@
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useEffect, useState } from 'react';
+import { Link, useParams } from 'react-router-dom';
+import { useAuth } from '../../../app/providers/use-auth';
+import type { ReportPriority, ReportStatus, UpdateReportInput } from '../../../models';
+import { can } from '../../../security/authorization';
+import { queryKeys, reportService, toApiError } from '../../../services';
+
+const statusMeta: Record<ReportStatus, { label: string; className: string }> = {
+  received: { label: 'Reçu', className: 'bg-sky-50 text-sky-800 ring-sky-200' },
+  in_progress: { label: 'En cours', className: 'bg-amber-50 text-amber-900 ring-amber-200' },
+  resolved: { label: 'Résolu', className: 'bg-emerald-50 text-emerald-800 ring-emerald-200' },
+};
+
+const priorityLabels: Record<ReportPriority, string> = {
+  low: 'Faible',
+  medium: 'Moyenne',
+  high: 'Haute',
+};
+
+function nextStatus(status: ReportStatus): ReportStatus | null {
+  if (status === 'received') return 'in_progress';
+  if (status === 'in_progress') return 'resolved';
+  return null;
+}
+
+function actionErrorMessage(caught: unknown): string {
+  const error = toApiError(caught);
+  const firstFieldMessage = Object.values(error.fieldErrors).flat()[0];
+
+  if (error.status === 403) {
+    return 'Action refusée : votre rôle ne permet pas de modifier ce signalement.';
+  }
+  if (error.status === 422) {
+    return firstFieldMessage ?? `Modification refusée : ${error.message}`;
+  }
+  return error.message;
+}
+
+function formatDate(value: string): string {
+  return new Intl.DateTimeFormat('fr-FR', {
+    dateStyle: 'long',
+    timeStyle: 'short',
+  }).format(new Date(value));
+}
+
+export function ReportDetailPage() {
+  const { reportId: reportIdParam } = useParams();
+  const reportId = Number(reportIdParam);
+  const validReportId = Number.isInteger(reportId) && reportId > 0;
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const [selectedPriority, setSelectedPriority] = useState<ReportPriority>('medium');
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const report = useQuery({
+    queryKey: queryKeys.report(reportId),
+    queryFn: () => reportService.get(reportId),
+    enabled: validReportId,
+  });
+  const canUpdate = can(user, 'report:update');
+
+  useEffect(() => {
+    if (report.data) setSelectedPriority(report.data.priority);
+  }, [report.data]);
+
+  const updateReport = useMutation({
+    mutationFn: (input: UpdateReportInput) => reportService.update(reportId, input),
+    onMutate: () => {
+      setActionError(null);
+      setNotice(null);
+    },
+    onSuccess: async (updated) => {
+      queryClient.setQueryData(queryKeys.report(reportId), updated);
+      setSelectedPriority(updated.priority);
+      setNotice('Le signalement a été mis à jour avec succès.');
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.report(reportId) }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.reports }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.dashboard }),
+      ]);
+    },
+    onError: (caught) => setActionError(actionErrorMessage(caught)),
+  });
+
+  if (!validReportId) {
+    return (
+      <section className="rounded-2xl border border-rose-200 bg-rose-50 p-6" role="alert">
+        <h1 className="text-xl font-black text-rose-950">Identifiant de dossier invalide</h1>
+        <Link className="mt-4 inline-block font-black text-teal-800 underline" to="/signalements">
+          Retour aux signalements
+        </Link>
+      </section>
+    );
+  }
+
+  if (report.isPending) {
+    return (
+      <section aria-busy="true" aria-label="Chargement du signalement" className="animate-pulse">
+        <div className="h-64 rounded-[2rem] bg-slate-200" />
+        <div className="mt-6 grid gap-5 lg:grid-cols-[1fr_20rem]">
+          <div className="h-96 rounded-2xl bg-white" />
+          <div className="h-80 rounded-2xl bg-white" />
+        </div>
+      </section>
+    );
+  }
+
+  if (report.isError) {
+    const error = toApiError(report.error);
+    return (
+      <section className="rounded-2xl border border-rose-200 bg-rose-50 p-6" role="alert">
+        <h1 className="text-xl font-black text-rose-950">
+          {error.status === 403 ? 'Signalement non autorisé' : 'Signalement indisponible'}
+        </h1>
+        <p className="mt-2 text-rose-800">
+          {error.status === 403
+            ? 'Votre rôle ne permet pas de consulter ce dossier.'
+            : error.message}
+        </p>
+        <div className="mt-5 flex flex-wrap gap-3">
+          <Link className="button-secondary inline-flex items-center" to="/signalements">
+            Retour à la liste
+          </Link>
+          {error.status !== 403 && (
+            <button className="button-primary" type="button" onClick={() => void report.refetch()}>
+              Réessayer
+            </button>
+          )}
+        </div>
+      </section>
+    );
+  }
+
+  const current = report.data;
+  const transition = nextStatus(current.status);
+
+  return (
+    <section>
+      <Link
+        to="/signalements"
+        className="inline-flex items-center gap-2 text-sm font-black text-teal-800 underline underline-offset-4"
+      >
+        <span aria-hidden="true">←</span>
+        Retour à la file
+      </Link>
+
+      <header className="mt-5 overflow-hidden rounded-[2rem] bg-gradient-to-br from-teal-950 via-teal-900 to-emerald-900 p-6 text-white shadow-xl sm:p-9">
+        <div className="flex flex-wrap items-start justify-between gap-6">
+          <div className="min-w-0">
+            <p className="text-xs font-black uppercase tracking-[0.18em] text-amber-300">
+              Dossier #{current.id}
+            </p>
+            <h1 className="mt-2 break-words text-3xl font-black tracking-tight sm:text-4xl">
+              {current.title}
+            </h1>
+            <p className="mt-3 text-sm font-semibold text-teal-100/75">
+              Créé le {formatDate(current.created_at)}
+            </p>
+          </div>
+          <span
+            className={`rounded-full px-4 py-2 text-sm font-black ring-1 ring-inset ${statusMeta[current.status].className}`}
+          >
+            {statusMeta[current.status].label}
+          </span>
+        </div>
+      </header>
+
+      {notice && (
+        <p
+          role="status"
+          className="mt-5 rounded-2xl border border-teal-200 bg-teal-50 p-4 font-semibold text-teal-900"
+        >
+          {notice}
+        </p>
+      )}
+      {actionError && (
+        <p
+          role="alert"
+          className="mt-5 rounded-2xl border border-rose-200 bg-rose-50 p-4 font-semibold text-rose-900"
+        >
+          {actionError}
+        </p>
+      )}
+
+      <div className="mt-6 grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_22rem]">
+        <div className="space-y-5">
+          <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-7">
+            <p className="text-xs font-black uppercase tracking-[0.14em] text-teal-700">
+              Description
+            </p>
+            <h2 className="sr-only">Description du signalement</h2>
+            <p className="mt-4 whitespace-pre-wrap break-words leading-7 text-slate-700">
+              {current.description}
+            </p>
+          </article>
+
+          <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-7">
+            <p className="text-xs font-black uppercase tracking-[0.14em] text-teal-700">Contexte</p>
+            <h2 className="mt-1 text-xl font-black text-slate-950">Localisation et classement</h2>
+            <dl className="mt-5 grid gap-5 sm:grid-cols-2">
+              <div>
+                <dt className="text-xs font-bold uppercase tracking-wide text-slate-400">
+                  Catégorie
+                </dt>
+                <dd className="mt-1 font-bold text-slate-900">
+                  {current.category?.name ?? 'Non renseignée'}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-xs font-bold uppercase tracking-wide text-slate-400">
+                  Territoire
+                </dt>
+                <dd className="mt-1 font-bold text-slate-900">
+                  {current.territory?.name ?? 'Non renseigné'}
+                </dd>
+              </div>
+              <div className="sm:col-span-2">
+                <dt className="text-xs font-bold uppercase tracking-wide text-slate-400">
+                  Repère déclaré
+                </dt>
+                <dd className="mt-1 font-bold text-slate-900">
+                  {current.location_text || 'Aucun repère indiqué'}
+                </dd>
+              </div>
+            </dl>
+          </article>
+
+          <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-7">
+            <p className="text-xs font-black uppercase tracking-[0.14em] text-teal-700">Citoyen</p>
+            <h2 className="mt-1 text-xl font-black text-slate-950">
+              {current.user?.name ?? 'Identité non disponible'}
+            </h2>
+            <p className="mt-2 text-sm text-slate-500">
+              {current.user?.email ?? 'Adresse non disponible'}
+            </p>
+          </article>
+        </div>
+
+        <aside className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm lg:sticky lg:top-28">
+          <p className="text-xs font-black uppercase tracking-[0.14em] text-teal-700">Traitement</p>
+          <h2 className="mt-1 text-xl font-black text-slate-950">État du dossier</h2>
+
+          <div className="mt-5 rounded-xl bg-slate-50 p-4">
+            <p className="text-xs font-bold uppercase tracking-wide text-slate-400">Priorité</p>
+            {canUpdate ? (
+              <div className="mt-2">
+                <label className="sr-only" htmlFor="report-priority">
+                  Priorité du signalement
+                </label>
+                <select
+                  id="report-priority"
+                  className="field mt-0"
+                  value={selectedPriority}
+                  disabled={updateReport.isPending}
+                  onChange={(event) => setSelectedPriority(event.target.value as ReportPriority)}
+                >
+                  <option value="low">Faible</option>
+                  <option value="medium">Moyenne</option>
+                  <option value="high">Haute</option>
+                </select>
+                <button
+                  type="button"
+                  className="button-secondary mt-3 w-full"
+                  disabled={updateReport.isPending || selectedPriority === current.priority}
+                  onClick={() => updateReport.mutate({ priority: selectedPriority })}
+                >
+                  Enregistrer la priorité
+                </button>
+              </div>
+            ) : (
+              <p className="mt-1 font-black text-slate-900">{priorityLabels[current.priority]}</p>
+            )}
+          </div>
+
+          {canUpdate ? (
+            <div className="mt-5 border-t border-slate-100 pt-5">
+              {transition ? (
+                <button
+                  type="button"
+                  className="button-primary w-full"
+                  disabled={updateReport.isPending}
+                  onClick={() => updateReport.mutate({ status: transition })}
+                >
+                  {updateReport.isPending
+                    ? 'Mise à jour…'
+                    : transition === 'in_progress'
+                      ? 'Passer en traitement'
+                      : 'Marquer comme résolu'}
+                </button>
+              ) : (
+                <p className="rounded-xl bg-emerald-50 p-4 text-sm font-bold text-emerald-800">
+                  Ce dossier est résolu. Aucune transition supplémentaire n’est autorisée.
+                </p>
+              )}
+              <p className="mt-3 text-xs leading-5 text-slate-400">
+                La fiche n’est actualisée qu’après confirmation du serveur.
+              </p>
+            </div>
+          ) : (
+            <p className="mt-5 rounded-xl bg-slate-50 p-4 text-sm font-semibold text-slate-600">
+              Consultation en lecture seule pour votre rôle.
+            </p>
+          )}
+        </aside>
+      </div>
+    </section>
+  );
+}
