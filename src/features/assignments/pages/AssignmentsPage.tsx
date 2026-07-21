@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../../app/providers/use-auth';
-import type { Assignment, AssignmentStatus } from '../../../models';
+import type { Assignment, AssignmentStatus, ReportPriority } from '../../../models';
 import { useNetworkStatus } from '../../../offline';
 import { can } from '../../../security/authorization';
 import {
@@ -17,6 +17,12 @@ const statusMeta: Record<AssignmentStatus, { label: string; className: string }>
   assigned: { label: 'Assignée', className: 'bg-sky-50 text-sky-800 ring-sky-200' },
   in_progress: { label: 'En cours', className: 'bg-amber-50 text-amber-900 ring-amber-200' },
   completed: { label: 'Terminée', className: 'bg-emerald-50 text-emerald-800 ring-emerald-200' },
+};
+
+const priorityMeta: Record<ReportPriority, { label: string; className: string }> = {
+  low: { label: 'Priorité faible', className: 'bg-slate-100 text-slate-700' },
+  medium: { label: 'Priorité moyenne', className: 'bg-orange-50 text-orange-800' },
+  high: { label: 'Priorité haute', className: 'bg-rose-50 text-rose-800' },
 };
 
 function nextStatus(assignment: Assignment): AssignmentStatus | null {
@@ -134,12 +140,12 @@ export function AssignmentsPage() {
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
               <p className="text-xs font-black uppercase tracking-[0.14em] text-teal-700">
-                Vue manager
+                Espace responsable
               </p>
               <h2 className="mt-1 text-xl font-black text-slate-950">Créer une affectation</h2>
             </div>
             <span className="rounded-full bg-violet-50 px-3 py-1 text-xs font-black text-violet-800">
-              Manager uniquement
+              Réservé aux responsables
             </span>
           </div>
 
@@ -268,10 +274,10 @@ export function AssignmentsPage() {
             return (
               <li
                 key={assignment.id}
-                className="flex flex-col rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6"
+                className="flex min-w-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_18px_50px_-38px_rgba(15,23,42,0.5)] transition hover:-translate-y-0.5 hover:border-teal-200 hover:shadow-lg sm:p-6"
               >
                 <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div className="min-w-0">
+                  <div className="min-w-0 flex-1">
                     <p className="text-xs font-black uppercase tracking-[0.14em] text-teal-700">
                       Intervention terrain
                     </p>
@@ -279,37 +285,69 @@ export function AssignmentsPage() {
                       {assignment.report?.title ?? 'Signalement non disponible'}
                     </h3>
                   </div>
-                  <span
-                    className={`rounded-full px-3 py-1 text-xs font-black ring-1 ring-inset ${statusMeta[assignment.status].className}`}
-                  >
-                    {statusMeta[assignment.status].label}
-                  </span>
+                  <div className="flex flex-wrap gap-2">
+                    <span
+                      className={`rounded-full px-3 py-1 text-xs font-black ring-1 ring-inset ${statusMeta[assignment.status].className}`}
+                    >
+                      {statusMeta[assignment.status].label}
+                    </span>
+                    {assignment.report?.priority && (
+                      <span
+                        className={`rounded-full px-3 py-1 text-xs font-black ${priorityMeta[assignment.report.priority].className}`}
+                      >
+                        {priorityMeta[assignment.report.priority].label}
+                      </span>
+                    )}
+                  </div>
                 </div>
-                <dl className="mt-4 grid gap-3 rounded-xl bg-slate-50 p-4 text-sm sm:grid-cols-2">
+                <dl className="mt-4 grid gap-4 rounded-2xl bg-slate-50 p-4 text-sm sm:grid-cols-2">
                   <div>
                     <dt className="text-xs font-bold uppercase text-slate-400">Intervenant</dt>
-                    <dd className="mt-1 font-bold text-slate-900">
+                    <dd className="mt-1 break-words font-bold text-slate-900">
                       {assignment.user?.name ?? 'Intervenant non renseigné'}
                     </dd>
                   </div>
                   <div>
-                    <dt className="text-xs font-bold uppercase text-slate-400">Créée le</dt>
-                    <dd className="mt-1 font-bold text-slate-900">
+                    <dt className="text-xs font-bold uppercase text-slate-400">Territoire</dt>
+                    <dd className="mt-1 break-words font-bold text-slate-900">
+                      {assignment.report?.territory?.name ?? 'Non renseigné'}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs font-bold uppercase text-slate-400">Catégorie</dt>
+                    <dd className="mt-1 break-words font-bold text-slate-900">
+                      {assignment.report?.category?.name ?? 'Non renseignée'}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs font-bold uppercase text-slate-400">Affectée le</dt>
+                    <dd className="mt-1 break-words font-bold text-slate-900">
                       {formatDate(assignment.created_at)}
+                    </dd>
+                  </div>
+                  <div className="sm:col-span-2">
+                    <dt className="text-xs font-bold uppercase text-slate-400">Lieu déclaré</dt>
+                    <dd className="mt-1 break-words font-bold text-slate-900">
+                      {assignment.report?.location_text || 'Aucun repère indiqué'}
                     </dd>
                   </div>
                 </dl>
                 {assignment.notes && (
-                  <p className="mt-4 rounded-xl border border-slate-100 p-3 text-sm leading-6 text-slate-600">
-                    {assignment.notes}
-                  </p>
+                  <div className="mt-4 rounded-xl border border-teal-100 bg-teal-50/60 p-4">
+                    <p className="text-xs font-black uppercase tracking-wide text-teal-700">
+                      Instructions de l’intervention
+                    </p>
+                    <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-6 text-slate-700">
+                      {assignment.notes}
+                    </p>
+                  </div>
                 )}
                 <div className="mt-auto flex flex-wrap justify-end gap-3 border-t border-slate-100 pt-5">
                   <Link
                     className="button-secondary inline-flex w-full items-center justify-center sm:w-auto"
                     to={`/signalements/${assignment.report_id}`}
                   >
-                    Voir le dossier
+                    Voir le signalement
                   </Link>
                   {transition && (
                     <button

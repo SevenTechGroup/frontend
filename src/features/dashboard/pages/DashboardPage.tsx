@@ -18,16 +18,16 @@ const metricConfig: Array<{
 }> = [
   {
     key: 'total_reports',
-    label: 'Signalements visibles',
-    description: 'Dossiers accessibles selon votre rôle',
+    label: 'Signalements accessibles',
+    description: 'Situations que votre rôle permet de suivre',
     icon: 'reports',
     tone: 'border-teal-100 hover:border-teal-300',
     iconTone: 'bg-teal-50 text-teal-700',
   },
   {
     key: 'total_assignments',
-    label: 'Affectations visibles',
-    description: 'Interventions suivies par les équipes',
+    label: 'Interventions suivies',
+    description: 'Missions réparties entre les intervenants',
     icon: 'assignments',
     tone: 'border-sky-100 hover:border-sky-300',
     iconTone: 'bg-sky-50 text-sky-700',
@@ -43,15 +43,15 @@ const metricConfig: Array<{
   {
     key: 'my_reports',
     label: 'Mes signalements',
-    description: 'Signalements créés depuis votre compte',
+    description: 'Alertes transmises depuis votre compte',
     icon: 'mine',
     tone: 'border-violet-100 hover:border-violet-300',
     iconTone: 'bg-violet-50 text-violet-700',
   },
   {
     key: 'my_assignments',
-    label: 'Mes affectations',
-    description: 'Actions qui vous sont personnellement confiées',
+    label: 'Mes interventions',
+    description: 'Missions terrain qui vous sont confiées',
     icon: 'tasks',
     tone: 'border-rose-100 hover:border-rose-300',
     iconTone: 'bg-rose-50 text-rose-700',
@@ -140,10 +140,16 @@ export function DashboardPage() {
   }).format(new Date());
   const canViewAssignments = can(user, 'assignment:view');
   const canCreateAssignments = can(user, 'assignment:create');
-  const primaryAction = canCreateAssignments
-    ? { to: '/affectations', label: 'Affecter un dossier' }
+  const visibleMetricKeys: MetricKey[] = canCreateAssignments
+    ? ['total_reports', 'total_assignments', 'unread_notifications']
     : canViewAssignments
-      ? { to: '/affectations', label: 'Voir mes affectations' }
+      ? ['total_reports', 'my_assignments', 'unread_notifications']
+      : ['my_reports', 'unread_notifications'];
+  const visibleMetrics = metricConfig.filter((metric) => visibleMetricKeys.includes(metric.key));
+  const primaryAction = canCreateAssignments
+    ? { to: '/affectations', label: 'Affecter un signalement' }
+    : canViewAssignments
+      ? { to: '/affectations', label: 'Voir mes interventions' }
       : { to: '/signalements/nouveau', label: 'Nouveau signalement' };
   const heroMessage = canCreateAssignments
     ? 'pilotez les interventions.'
@@ -151,22 +157,24 @@ export function DashboardPage() {
       ? 'vos missions vous attendent.'
       : 'que souhaitez-vous signaler ?';
   const heroDescription = canCreateAssignments
-    ? 'Supervisez les dossiers, répartissez le travail et suivez les indicateurs de l’équipe.'
+    ? 'Supervisez les signalements, répartissez le travail et suivez les indicateurs de l’équipe.'
     : canViewAssignments
-      ? 'Retrouvez vos dossiers affectés, mettez leur état à jour et consultez les nouvelles notifications.'
-      : 'Retrouvez vos dossiers, suivez leur traitement et transmettez une nouvelle alerte en quelques étapes.';
+      ? 'Retrouvez vos interventions, mettez leur état à jour et consultez les nouvelles notifications.'
+      : 'Retrouvez vos signalements, suivez leur traitement et transmettez une nouvelle alerte en quelques étapes.';
   const quickActions = canViewAssignments
     ? [
         {
           to: '/affectations',
-          label: canCreateAssignments ? 'Gérer les affectations' : 'Mes affectations',
-          detail: canCreateAssignments ? 'Répartir les dossiers' : 'Avancer mes interventions',
+          label: canCreateAssignments ? 'Gérer les affectations' : 'Mes interventions',
+          detail: canCreateAssignments
+            ? 'Répartir les signalements entre les équipes'
+            : 'Faire avancer mes missions terrain',
           icon: 'assignments' as const,
         },
         {
           to: '/signalements',
-          label: 'File des signalements',
-          detail: 'Rechercher et filtrer les dossiers',
+          label: 'Signalements à traiter',
+          detail: 'Rechercher et filtrer les alertes',
           icon: 'reports' as const,
         },
         {
@@ -185,7 +193,7 @@ export function DashboardPage() {
         },
         {
           to: '/signalements',
-          label: 'Suivre mes dossiers',
+          label: 'Suivre mes signalements',
           detail: 'Consulter les changements',
           icon: 'mine' as const,
         },
@@ -236,7 +244,7 @@ export function DashboardPage() {
               to="/signalements"
               className="inline-flex min-h-12 items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-5 py-3 font-bold text-white backdrop-blur transition hover:bg-white/15"
             >
-              Voir mes dossiers
+              {canCreateAssignments ? 'Voir les signalements' : 'Voir mes signalements'}
               <DashboardIcon name="arrow" />
             </Link>
           </div>
@@ -259,8 +267,10 @@ export function DashboardPage() {
         </p>
       </div>
 
-      <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-        {metricConfig.map((metric) => (
+      <div
+        className={`mt-4 grid gap-4 sm:grid-cols-2 ${visibleMetrics.length === 3 ? 'lg:grid-cols-3' : 'lg:grid-cols-2'}`}
+      >
+        {visibleMetrics.map((metric) => (
           <article
             key={metric.key}
             className={`group relative min-h-44 overflow-hidden rounded-2xl border bg-white p-5 shadow-[0_16px_40px_-32px_rgba(15,23,42,0.45)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_24px_50px_-28px_rgba(15,118,110,0.28)] ${metric.tone}`}

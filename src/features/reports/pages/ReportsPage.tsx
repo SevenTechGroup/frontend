@@ -97,7 +97,6 @@ export function ReportsPage() {
           report.location_text,
           report.category?.name,
           report.territory?.name,
-          `dossier ${report.id}`,
         ]
           .filter(Boolean)
           .join(' '),
@@ -149,17 +148,17 @@ export function ReportsPage() {
               {canManageReports ? 'Espace opérationnel' : 'Espace citoyen'}
             </p>
             <h1 className="mt-2 text-3xl font-black tracking-tight sm:text-4xl">
-              {canManageReports ? 'File de traitement' : 'Mes signalements'}
+              {canManageReports ? 'Signalements à traiter' : 'Mes signalements'}
             </h1>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-teal-100/80">
               {canManageReports
-                ? 'Recherchez, filtrez et faites avancer les dossiers qui vous sont accessibles.'
-                : 'Consultez les dossiers que vous avez transmis et leur état de traitement.'}
+                ? 'Recherchez, filtrez et faites avancer les signalements qui vous sont accessibles.'
+                : 'Consultez les signalements que vous avez transmis et leur état de traitement.'}
             </p>
           </div>
           <div className="rounded-2xl border border-white/10 bg-white/10 px-5 py-3 text-center backdrop-blur">
             <strong className="block text-2xl font-black">{reports.data.length}</strong>
-            <span className="text-xs font-bold text-teal-100">dossiers visibles</span>
+            <span className="text-xs font-bold text-teal-100">signalements visibles</span>
           </div>
         </div>
       </header>
@@ -187,7 +186,7 @@ export function ReportsPage() {
               <input
                 type="search"
                 className="field mt-0 pl-10"
-                placeholder="Titre, lieu, catégorie ou dossier…"
+                placeholder="Titre, lieu, catégorie ou territoire…"
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
               />
@@ -274,7 +273,8 @@ export function ReportsPage() {
         <div className="mt-6 rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center">
           <h2 className="text-lg font-black text-slate-900">Aucun signalement visible</h2>
           <p className="mt-2 text-sm text-slate-500">
-            Les nouveaux dossiers apparaîtront ici dès qu’ils seront disponibles pour votre rôle.
+            Les nouveaux signalements apparaîtront ici dès qu’ils seront disponibles pour votre
+            rôle.
           </p>
         </div>
       ) : filteredReports.length === 0 ? (
@@ -288,7 +288,7 @@ export function ReportsPage() {
           </button>
         </div>
       ) : (
-        <ul className="mt-6 grid gap-4 lg:grid-cols-2">
+        <ul className="mt-6 grid gap-5 xl:grid-cols-2">
           {filteredReports.map((report) => {
             const transition = nextStatus(report);
             const primaryPhoto = report.attachments?.find((attachment) =>
@@ -300,12 +300,12 @@ export function ReportsPage() {
             return (
               <li
                 key={report.id}
-                className="flex min-w-0 flex-col rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-teal-200 hover:shadow-lg sm:p-6"
+                className="flex min-w-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_18px_50px_-38px_rgba(15,23,42,0.5)] transition hover:-translate-y-0.5 hover:border-teal-200 hover:shadow-lg sm:p-6"
               >
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0">
                     <p className="text-xs font-black uppercase tracking-[0.14em] text-teal-700">
-                      Signalement citoyen
+                      {report.category?.name ?? 'Signalement citoyen'}
                     </p>
                     <h2 className="mt-1 break-words text-xl font-black text-slate-950">
                       {report.title}
@@ -381,7 +381,7 @@ export function ReportsPage() {
                     to={`/signalements/${report.id}`}
                     className="button-secondary inline-flex w-full items-center justify-center sm:w-auto"
                   >
-                    Voir le dossier
+                    Consulter le signalement
                   </Link>
                   {canManageReports && transition && (
                     <button

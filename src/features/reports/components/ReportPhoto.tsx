@@ -30,7 +30,8 @@ export function ReportPhoto({ attachment, alt, variant = 'card' }: ReportPhotoPr
   }, [photo.data]);
 
   const frameClassName =
-    variant === 'detail' ? 'aspect-[16/10] min-h-64 sm:min-h-80' : 'aspect-[16/9] min-h-44';
+    variant === 'detail' ? 'aspect-[16/10] max-h-[36rem]' : 'aspect-[16/9] max-h-64';
+  const objectFitClassName = variant === 'detail' ? 'object-contain' : 'object-cover';
 
   if (photo.isError) {
     return (
@@ -69,7 +70,7 @@ export function ReportPhoto({ attachment, alt, variant = 'card' }: ReportPhotoPr
     <img
       src={source}
       alt={alt}
-      className={`${frameClassName} w-full rounded-2xl bg-slate-100 object-cover`}
+      className={`${frameClassName} ${objectFitClassName} w-full rounded-2xl bg-slate-100`}
       loading="lazy"
       decoding="async"
     />

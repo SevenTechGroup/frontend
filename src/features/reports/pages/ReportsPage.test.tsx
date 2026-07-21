@@ -166,7 +166,9 @@ describe('ReportsPage', () => {
     const { queryClient } = renderPage();
     const invalidate = vi.spyOn(queryClient, 'invalidateQueries').mockResolvedValue();
 
-    expect(await screen.findByRole('heading', { name: 'File de traitement' })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('heading', { name: 'Signalements à traiter' }),
+    ).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Prendre en charge' }));
 
     await waitFor(() => {

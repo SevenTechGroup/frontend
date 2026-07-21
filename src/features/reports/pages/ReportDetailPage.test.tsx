@@ -60,6 +60,16 @@ const report: Report = {
     is_active: true,
   },
   territory: { id: 10, name: 'Dakar Plateau', code: 'DKR', is_active: true },
+  location: {
+    id: 2,
+    report_id: 41,
+    latitude: 14.6928,
+    longitude: -17.4467,
+    accuracy_m: 18,
+    source: 'gps',
+    created_at: '2026-07-20T10:00:00.000Z',
+    updated_at: '2026-07-20T10:00:00.000Z',
+  },
   attachments: [
     {
       id: 17,
@@ -124,6 +134,11 @@ describe('ReportDetailPage', () => {
     expect(screen.getByText('Awa Diop')).toBeInTheDocument();
     expect(screen.getByText('Inondation')).toBeInTheDocument();
     expect(screen.getByText('Dakar Plateau')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Ouvrir sur la carte' })).toHaveAttribute(
+      'href',
+      expect.stringContaining('openstreetmap.org'),
+    );
+    expect(screen.getByText('Suivi du signalement')).toBeInTheDocument();
     expect(screen.getByText(report.description)).toBeInTheDocument();
     expect(screen.getByText('Photo transmise avec le signalement')).toBeInTheDocument();
     expect(
@@ -152,15 +167,15 @@ describe('ReportDetailPage', () => {
     await user.click(screen.getByRole('button', { name: 'Passer en traitement' }));
 
     expect(mocks.update).toHaveBeenCalledWith(41, { status: 'in_progress' });
-    expect(screen.getByText('Reçu')).toBeInTheDocument();
-    expect(screen.queryByText('En cours')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Statut actuel : Reçu')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Statut actuel : En cours')).not.toBeInTheDocument();
 
     await act(async () => {
       resolveUpdate?.({ ...report, status: 'in_progress' });
       await Promise.resolve();
     });
 
-    expect(await screen.findByText('En cours')).toBeInTheDocument();
+    expect(await screen.findByLabelText('Statut actuel : En cours')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Marquer comme résolu' })).toBeInTheDocument();
     expect(invalidate).toHaveBeenCalledWith({ queryKey: ['reports', 41] });
     expect(invalidate).toHaveBeenCalledWith({ queryKey: ['reports'] });

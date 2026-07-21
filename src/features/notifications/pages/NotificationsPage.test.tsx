@@ -68,6 +68,7 @@ describe('NotificationsPage', () => {
     expect(
       await screen.findByText('Une nouvelle intervention vous a été affectée.'),
     ).toBeInTheDocument();
+    expect(screen.getByText('Le signalement précédent est terminé.')).toBeInTheDocument();
     expect(screen.getByText('1')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Marquer comme lue' }));
 

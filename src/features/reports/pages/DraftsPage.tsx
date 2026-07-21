@@ -233,9 +233,9 @@ export function DraftsPage() {
 
       {!syncEnabled && (
         <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-950">
-          <strong>Envoi automatique désactivé.</strong> Les brouillons restent protégés sur cet
-          appareil. Activez <code>VITE_ENABLE_OFFLINE_SYNC</code> dans la configuration de cet
-          environnement pour autoriser les tentatives automatiques.
+          <strong>Envoi automatique temporairement indisponible.</strong> Vos brouillons restent
+          enregistrés sur cet appareil. Vous pourrez les reprendre et les envoyer dès que ce service
+          sera disponible.
         </div>
       )}
       {notice && (
@@ -266,7 +266,8 @@ export function DraftsPage() {
                 </h2>
               </div>
               <span className="rounded-full bg-slate-200 px-3 py-1 text-sm font-black text-slate-700">
-                {drafts.data?.length ?? 0}
+                {drafts.data?.length ?? 0} brouillon
+                {(drafts.data?.length ?? 0) > 1 ? 's' : ''}
               </span>
             </div>
             {drafts.data?.length ? (
@@ -303,7 +304,7 @@ export function DraftsPage() {
                 </h2>
               </div>
               <span className="rounded-full bg-slate-200 px-3 py-1 text-sm font-black text-slate-700">
-                {queue.data?.length ?? 0}
+                {queue.data?.length ?? 0} en attente
               </span>
             </div>
             {queue.data?.length ? (

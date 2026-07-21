@@ -67,7 +67,7 @@ const steps = [
     number: '03',
     icon: 'chart' as const,
     title: 'Suivez la résolution',
-    text: 'Consultez chaque évolution du dossier, de sa réception jusqu’à sa résolution.',
+    text: 'Consultez chaque évolution du signalement, de sa réception jusqu’à sa résolution.',
   },
 ];
 
@@ -293,7 +293,7 @@ export function HomePage() {
                         </div>
                         <p className="text-2xl font-black text-slate-950">24</p>
                         <p className="text-[10px] leading-4 text-slate-500">
-                          Dossiers résolus ce mois
+                          Signalements résolus ce mois
                         </p>
                       </div>
                       <div className="rounded-2xl border border-slate-200 bg-white p-3.5 shadow-sm">
@@ -310,7 +310,7 @@ export function HomePage() {
                           <Icon name="bell" className="size-4" /> Mise à jour
                         </div>
                         <p className="mt-2 text-xs font-bold leading-5">
-                          Votre dossier est maintenant en cours de traitement.
+                          Votre signalement est maintenant en cours de traitement.
                         </p>
                       </div>
                     </div>
@@ -324,7 +324,7 @@ export function HomePage() {
                 </span>
                 <div>
                   <p className="text-xs font-black">Signalement envoyé</p>
-                  <p className="text-[10px] text-slate-500">Référence #SS-2408</p>
+                  <p className="text-[10px] text-slate-500">Suivi activé automatiquement</p>
                 </div>
               </div>
               <div className="animate-landing-float absolute -bottom-5 right-3 flex items-center gap-3 rounded-2xl bg-slate-950 p-3.5 pr-5 text-white shadow-2xl sm:right-10">
@@ -425,7 +425,7 @@ export function HomePage() {
                   </div>
                   <div className="px-5 py-6">
                     <p className="text-xs font-black uppercase tracking-[0.15em] text-teal-700">
-                      Dossier #SS-2408
+                      Suivi du signalement
                     </p>
                     <h3 className="mt-2 text-2xl font-black">Lampadaire en panne</h3>
                     <p className="mt-1 text-sm text-slate-500">Quartier Nord · Éclairage public</p>
@@ -499,7 +499,7 @@ export function HomePage() {
                   {[
                     'Formulaire guidé et inclusif',
                     'Brouillons disponibles hors ligne',
-                    'Chronologie claire du dossier',
+                    'Chronologie claire du signalement',
                   ].map((item) => (
                     <li key={item} className="flex items-center gap-3">
                       <span className="grid size-7 place-items-center rounded-full bg-amber-400 text-slate-950">

@@ -50,6 +50,15 @@ const report: Report = {
   location_text: 'Marché central',
   priority: 'high',
   status: 'received',
+  category: {
+    id: 3,
+    name: 'Eau et assainissement',
+    slug: 'eau-assainissement',
+    severity: 'high',
+    description: null,
+    is_active: true,
+  },
+  territory: { id: 10, name: 'Dakar', code: 'DKR', is_active: true },
   created_at: '2026-07-20T10:00:00.000Z',
   updated_at: '2026-07-20T10:00:00.000Z',
 };
@@ -132,7 +141,7 @@ describe('AssignmentsPage', () => {
     expect(
       await screen.findByRole('heading', { name: 'Créer une affectation' }),
     ).toBeInTheDocument();
-    await screen.findByRole('option', { name: 'Route inondée' });
+    await screen.findByRole('option', { name: 'Route inondée — Dakar' });
     await screen.findByRole('option', { name: 'Moussa Diop — Intervenant terrain' });
     await user.selectOptions(screen.getByLabelText('Signalement'), '41');
     await user.selectOptions(screen.getByLabelText('Intervenant responsable'), '8');
@@ -141,6 +150,8 @@ describe('AssignmentsPage', () => {
 
     expect(screen.queryByText('#41', { exact: false })).not.toBeInTheDocument();
     expect(screen.queryByText('moussa@example.test', { exact: false })).not.toBeInTheDocument();
+    expect(screen.getByText('Eau et assainissement')).toBeInTheDocument();
+    expect(screen.getByText('Dakar')).toBeInTheDocument();
 
     await waitFor(() => {
       expect(mocks.createAssignment).toHaveBeenCalledWith({

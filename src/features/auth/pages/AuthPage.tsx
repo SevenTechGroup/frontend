@@ -182,7 +182,7 @@ export function AuthPage({ mode }: AuthPageProps) {
           <p className="mt-6 max-w-lg text-lg leading-8 text-teal-100/70">
             {isRegister
               ? 'Créez votre espace citoyen et contribuez simplement à rendre votre quartier plus sûr, plus propre et plus agréable.'
-              : 'Votre espace vous permet de voir les réponses, les affectations et la progression de chaque dossier.'}
+              : 'Votre espace vous permet de voir les réponses, les interventions et la progression de chaque signalement.'}
           </p>
 
           <ul className="mt-9 grid gap-4">
