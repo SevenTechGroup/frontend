@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../../app/providers/use-auth';
 import type { Report, ReportPriority, ReportStatus } from '../../../models';
+import { useNetworkStatus } from '../../../offline';
 import { can } from '../../../security/authorization';
 import { queryKeys, reportService, toApiError } from '../../../services';
 import { ReportPhoto } from '../components/ReportPhoto';
@@ -55,6 +56,7 @@ function LoadingState() {
 export function ReportsPage() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const isOnline = useNetworkStatus();
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState<'all' | ReportStatus>('all');
   const [priority, setPriority] = useState<'all' | ReportPriority>('all');
@@ -303,7 +305,7 @@ export function ReportsPage() {
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0">
                     <p className="text-xs font-black uppercase tracking-[0.14em] text-teal-700">
-                      Dossier #{report.id}
+                      Signalement citoyen
                     </p>
                     <h2 className="mt-1 break-words text-xl font-black text-slate-950">
                       {report.title}
@@ -385,7 +387,7 @@ export function ReportsPage() {
                     <button
                       type="button"
                       className="button-primary w-full sm:w-auto"
-                      disabled={isUpdating}
+                      disabled={!isOnline || isUpdating}
                       onClick={() =>
                         updateStatus.mutate({ reportId: report.id, status: transition })
                       }

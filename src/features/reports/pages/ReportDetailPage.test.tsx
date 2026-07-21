@@ -119,6 +119,8 @@ describe('ReportDetailPage', () => {
     renderPage();
 
     expect(await screen.findByRole('heading', { name: 'Route inondée' })).toBeInTheDocument();
+    expect(screen.getByText('Fiche de signalement')).toBeInTheDocument();
+    expect(screen.queryByText('Dossier #41')).not.toBeInTheDocument();
     expect(screen.getByText('Awa Diop')).toBeInTheDocument();
     expect(screen.getByText('Inondation')).toBeInTheDocument();
     expect(screen.getByText('Dakar Plateau')).toBeInTheDocument();

@@ -41,3 +41,11 @@ export interface SyncSummary {
   failed: number;
   blocked: number;
 }
+
+export interface OfflineApiCacheEntry {
+  key: string;
+  userId: number | null;
+  resource: string;
+  value: unknown;
+  updatedAt: string;
+}

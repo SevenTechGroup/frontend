@@ -3,6 +3,7 @@ import { useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../../app/providers/use-auth';
 import type { Assignment, AssignmentStatus } from '../../../models';
+import { useNetworkStatus } from '../../../offline';
 import { can } from '../../../security/authorization';
 import {
   assignmentService,
@@ -34,6 +35,7 @@ function formatDate(value: string): string {
 export function AssignmentsPage() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const isOnline = useNetworkStatus();
   const canCreate = can(user, 'assignment:create');
   const [reportId, setReportId] = useState('');
   const [agentId, setAgentId] = useState('');
@@ -79,7 +81,7 @@ export function AssignmentsPage() {
       setReportId('');
       setAgentId('');
       setNotes('');
-      setNotice('L’affectation a été créée et l’agent a été notifié.');
+      setNotice('L’affectation a été créée et l’intervenant a été notifié.');
       await refreshAfterAction();
     },
     onError: (caught) => setError(toApiError(caught).message),
@@ -102,7 +104,7 @@ export function AssignmentsPage() {
   const submitAssignment = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!reportId || !agentId) {
-      setError('Sélectionnez un signalement et un agent.');
+      setError('Sélectionnez un signalement et un intervenant.');
       return;
     }
     createAssignment.mutate();
@@ -119,7 +121,7 @@ export function AssignmentsPage() {
         <h1 className="mt-2 text-3xl font-black tracking-tight sm:text-4xl">Affectations</h1>
         <p className="mt-3 max-w-2xl text-sm leading-6 text-teal-100/80">
           {canCreate
-            ? 'Répartissez les signalements et suivez leur exécution par les agents.'
+            ? 'Répartissez les signalements et suivez leur exécution par les intervenants.'
             : 'Retrouvez les interventions qui vous sont confiées et faites-les avancer.'}
         </p>
       </header>
@@ -147,29 +149,30 @@ export function AssignmentsPage() {
               <select
                 className="field"
                 value={reportId}
-                disabled={reports.isPending || createAssignment.isPending}
+                disabled={!isOnline || reports.isPending || createAssignment.isPending}
                 onChange={(event) => setReportId(event.target.value)}
               >
-                <option value="">Choisir un dossier</option>
+                <option value="">Choisir un signalement</option>
                 {reports.data?.map((report) => (
                   <option key={report.id} value={report.id}>
-                    #{report.id} · {report.title}
+                    {report.title}
+                    {report.territory?.name ? ` — ${report.territory.name}` : ''}
                   </option>
                 ))}
               </select>
             </label>
             <label>
-              <span className="text-sm font-black text-slate-700">Agent responsable</span>
+              <span className="text-sm font-black text-slate-700">Intervenant responsable</span>
               <select
                 className="field"
                 value={agentId}
-                disabled={agents.isPending || createAssignment.isPending}
+                disabled={!isOnline || agents.isPending || createAssignment.isPending}
                 onChange={(event) => setAgentId(event.target.value)}
               >
-                <option value="">Choisir un agent</option>
+                <option value="">Choisir un intervenant</option>
                 {agents.data?.map((agent) => (
                   <option key={agent.id} value={agent.id}>
-                    {agent.name} · {agent.email}
+                    {agent.name} — Intervenant terrain
                   </option>
                 ))}
               </select>
@@ -180,7 +183,7 @@ export function AssignmentsPage() {
                 className="field min-h-28 resize-y"
                 maxLength={2000}
                 value={notes}
-                disabled={createAssignment.isPending}
+                disabled={!isOnline || createAssignment.isPending}
                 onChange={(event) => setNotes(event.target.value)}
               />
             </label>
@@ -188,12 +191,22 @@ export function AssignmentsPage() {
           <div className="mt-5 flex justify-end">
             <button
               className="button-primary w-full sm:w-auto"
-              disabled={createAssignment.isPending}
+              disabled={!isOnline || createAssignment.isPending}
             >
-              {createAssignment.isPending ? 'Création…' : 'Affecter le dossier'}
+              {createAssignment.isPending ? 'Création…' : 'Affecter l’intervention'}
             </button>
           </div>
         </form>
+      )}
+
+      {!isOnline && (
+        <p
+          role="status"
+          className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 font-semibold text-amber-900"
+        >
+          Les affectations enregistrées restent consultables hors ligne. Reconnectez-vous pour créer
+          une affectation ou modifier son état.
+        </p>
       )}
 
       {(error || referencesError) && (
@@ -223,7 +236,8 @@ export function AssignmentsPage() {
           </h2>
         </div>
         <span className="rounded-full bg-slate-200 px-3 py-1 text-sm font-black text-slate-700">
-          {assignments.data?.length ?? 0}
+          {assignments.data?.length ?? 0} affectation
+          {(assignments.data?.length ?? 0) > 1 ? 's' : ''}
         </span>
       </div>
 
@@ -259,10 +273,10 @@ export function AssignmentsPage() {
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0">
                     <p className="text-xs font-black uppercase tracking-[0.14em] text-teal-700">
-                      Affectation #{assignment.id}
+                      Intervention terrain
                     </p>
                     <h3 className="mt-1 break-words text-lg font-black text-slate-950">
-                      {assignment.report?.title ?? `Dossier #${assignment.report_id}`}
+                      {assignment.report?.title ?? 'Signalement non disponible'}
                     </h3>
                   </div>
                   <span
@@ -273,9 +287,9 @@ export function AssignmentsPage() {
                 </div>
                 <dl className="mt-4 grid gap-3 rounded-xl bg-slate-50 p-4 text-sm sm:grid-cols-2">
                   <div>
-                    <dt className="text-xs font-bold uppercase text-slate-400">Agent</dt>
+                    <dt className="text-xs font-bold uppercase text-slate-400">Intervenant</dt>
                     <dd className="mt-1 font-bold text-slate-900">
-                      {assignment.user?.name ?? `Agent #${assignment.user_id}`}
+                      {assignment.user?.name ?? 'Intervenant non renseigné'}
                     </dd>
                   </div>
                   <div>
@@ -300,7 +314,7 @@ export function AssignmentsPage() {
                   {transition && (
                     <button
                       className="button-primary w-full sm:w-auto"
-                      disabled={isUpdating}
+                      disabled={!isOnline || isUpdating}
                       onClick={() =>
                         updateAssignment.mutate({ id: assignment.id, status: transition })
                       }

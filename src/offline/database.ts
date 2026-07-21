@@ -1,9 +1,10 @@
 import Dexie, { type EntityTable } from 'dexie';
-import type { OfflineDraft, SyncQueueItem } from './types';
+import type { OfflineApiCacheEntry, OfflineDraft, SyncQueueItem } from './types';
 
 class SahelSignalDatabase extends Dexie {
   drafts!: EntityTable<OfflineDraft, 'clientSubmissionId'>;
   syncQueue!: EntityTable<SyncQueueItem, 'id'>;
+  apiCache!: EntityTable<OfflineApiCacheEntry, 'key'>;
 
   constructor() {
     super('sahel-signal');
@@ -11,6 +12,12 @@ class SahelSignalDatabase extends Dexie {
     this.version(1).stores({
       drafts: '&clientSubmissionId, updatedAt',
       syncQueue: '&id, &clientSubmissionId, state, nextAttemptAt, createdAt',
+    });
+
+    this.version(2).stores({
+      drafts: '&clientSubmissionId, updatedAt',
+      syncQueue: '&id, &clientSubmissionId, state, nextAttemptAt, createdAt',
+      apiCache: '&key, userId, resource, updatedAt',
     });
   }
 }

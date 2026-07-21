@@ -5,17 +5,28 @@ import type {
   Report,
   UpdateReportInput,
 } from '../models';
+import { offlineDataCache } from '../offline/offline-data-cache';
 import { httpClient } from './api/http-client';
 
 class ReportService {
   async list(): Promise<Report[]> {
-    const { data } = await httpClient.get<ApiDataResponse<Report[]>>('/reports');
-    return data.data;
+    const reports = await offlineDataCache.remember('reports', async () => {
+      const { data } = await httpClient.get<ApiDataResponse<Report[]>>('/reports');
+      return data.data;
+    });
+
+    await Promise.allSettled(
+      reports.map((report) => offlineDataCache.store(`reports:${report.id}`, report)),
+    );
+
+    return reports;
   }
 
   async get(id: number): Promise<Report> {
-    const { data } = await httpClient.get<ApiDataResponse<Report>>(`/reports/${id}`);
-    return data.data;
+    return offlineDataCache.remember(`reports:${id}`, async () => {
+      const { data } = await httpClient.get<ApiDataResponse<Report>>(`/reports/${id}`);
+      return data.data;
+    });
   }
 
   async create(
@@ -37,11 +48,13 @@ class ReportService {
   }
 
   async getAttachmentContent(id: number): Promise<Blob> {
-    const { data } = await httpClient.get<Blob>(`/attachments/${id}/content`, {
-      responseType: 'blob',
-    });
+    return offlineDataCache.remember(`attachments:${id}`, async () => {
+      const { data } = await httpClient.get<Blob>(`/attachments/${id}/content`, {
+        responseType: 'blob',
+      });
 
-    return data;
+      return data;
+    });
   }
 
   private toMultipartPayload(input: CreateReportInput, evidence: CreateReportEvidence): FormData {

@@ -117,7 +117,9 @@ export function DashboardPage() {
         </span>
         <h1 className="mt-4 text-2xl font-black text-slate-950">Tableau de bord indisponible</h1>
         <p role="alert" className="mt-2 text-slate-600">
-          {toApiError(dashboard.error).message}
+          {isOnline
+            ? toApiError(dashboard.error).message
+            : 'Aucune donnée enregistrée n’est encore disponible sur cet appareil. Reconnectez-vous une première fois pour préparer le mode hors ligne.'}
         </p>
         <button
           className="button-primary mt-6"
@@ -250,7 +252,11 @@ export function DashboardPage() {
             Vos indicateurs
           </h2>
         </div>
-        <p className="text-sm font-semibold text-slate-500">Données mises à jour depuis l’API</p>
+        <p className="text-sm font-semibold text-slate-500">
+          {isOnline
+            ? 'Données actualisées depuis le serveur'
+            : 'Dernières données enregistrées sur cet appareil'}
+        </p>
       </div>
 
       <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
@@ -331,7 +337,7 @@ export function DashboardPage() {
                 <span className="text-xs text-slate-500">
                   {isOnline
                     ? 'Les données peuvent être actualisées'
-                    : 'Vos brouillons restent disponibles'}
+                    : 'Les données enregistrées restent consultables'}
                 </span>
               </span>
             </div>

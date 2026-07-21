@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useNetworkStatus } from '../../../offline';
 import { notificationService, queryKeys, toApiError } from '../../../services';
 
 function formatDate(value: string): string {
@@ -10,6 +11,7 @@ function formatDate(value: string): string {
 
 export function NotificationsPage() {
   const queryClient = useQueryClient();
+  const isOnline = useNetworkStatus();
   const notifications = useQuery({
     queryKey: queryKeys.notifications,
     queryFn: () => notificationService.list(),
@@ -109,7 +111,7 @@ export function NotificationsPage() {
                     <button
                       type="button"
                       className="button-secondary w-full text-sm sm:w-auto"
-                      disabled={isUpdating}
+                      disabled={!isOnline || isUpdating}
                       onClick={() => markAsRead.mutate(notification.id)}
                     >
                       {isUpdating ? 'Mise à jour…' : 'Marquer comme lue'}

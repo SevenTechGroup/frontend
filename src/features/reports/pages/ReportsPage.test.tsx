@@ -138,6 +138,7 @@ describe('ReportsPage', () => {
     expect(await screen.findByRole('heading', { name: 'Mes signalements' })).toBeInTheDocument();
     expect(screen.getByText('Route inondée')).toBeInTheDocument();
     expect(screen.getByText('Canal bouché')).toBeInTheDocument();
+    expect(screen.queryByText('Dossier #41')).not.toBeInTheDocument();
     expect(
       await screen.findByRole('img', {
         name: 'Preuve photographique du signalement « Route inondée »',

@@ -19,13 +19,35 @@ export function AuthProvider({ children }: PropsWithChildren) {
     window.addEventListener(AUTH_UNAUTHORIZED_EVENT, onUnauthorized);
 
     if (hasToken) {
+      const storedUser = authSession.getUser();
+
+      if (!navigator.onLine && storedUser) {
+        setUser(storedUser);
+        setStatus('authenticated');
+
+        return () => window.removeEventListener(AUTH_UNAUTHORIZED_EVENT, onUnauthorized);
+      }
+
       void authService
         .me()
         .then((currentUser) => {
           setUser(currentUser);
           setStatus('authenticated');
         })
-        .catch(() => {
+        .catch((error: unknown) => {
+          const networkUnavailable =
+            !navigator.onLine ||
+            (typeof error === 'object' &&
+              error !== null &&
+              'status' in error &&
+              error.status === null);
+
+          if (networkUnavailable && storedUser) {
+            setUser(storedUser);
+            setStatus('authenticated');
+            return;
+          }
+
           authSession.clear();
           setUser(null);
           setStatus('anonymous');

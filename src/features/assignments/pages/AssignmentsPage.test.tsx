@@ -71,6 +71,13 @@ const assignment: Assignment = {
   updated_at: '2026-07-20T11:00:00.000Z',
 };
 
+function setOnline(value: boolean) {
+  Object.defineProperty(window.navigator, 'onLine', {
+    configurable: true,
+    value,
+  });
+}
+
 function renderPage() {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
@@ -90,6 +97,7 @@ function renderPage() {
 describe('AssignmentsPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    setOnline(true);
     mocks.user = agent;
     mocks.listAssignments.mockResolvedValue([assignment]);
     mocks.listReports.mockResolvedValue([report]);
@@ -124,12 +132,15 @@ describe('AssignmentsPage', () => {
     expect(
       await screen.findByRole('heading', { name: 'Créer une affectation' }),
     ).toBeInTheDocument();
-    await screen.findByRole('option', { name: '#41 · Route inondée' });
-    await screen.findByRole('option', { name: 'Moussa Diop · moussa@example.test' });
+    await screen.findByRole('option', { name: 'Route inondée' });
+    await screen.findByRole('option', { name: 'Moussa Diop — Intervenant terrain' });
     await user.selectOptions(screen.getByLabelText('Signalement'), '41');
-    await user.selectOptions(screen.getByLabelText('Agent responsable'), '8');
+    await user.selectOptions(screen.getByLabelText('Intervenant responsable'), '8');
     await user.type(screen.getByLabelText('Instructions facultatives'), 'Intervenir rapidement.');
-    await user.click(screen.getByRole('button', { name: 'Affecter le dossier' }));
+    await user.click(screen.getByRole('button', { name: 'Affecter l’intervention' }));
+
+    expect(screen.queryByText('#41', { exact: false })).not.toBeInTheDocument();
+    expect(screen.queryByText('moussa@example.test', { exact: false })).not.toBeInTheDocument();
 
     await waitFor(() => {
       expect(mocks.createAssignment).toHaveBeenCalledWith({
@@ -138,5 +149,22 @@ describe('AssignmentsPage', () => {
         notes: 'Intervenir rapidement.',
       });
     });
+  });
+
+  it('garde les affectations consultables et bloque clairement les modifications hors ligne', async () => {
+    mocks.user = { id: 2, name: 'Aminata', email: 'aminata@example.test', role: 'manager' };
+    setOnline(false);
+
+    renderPage();
+
+    expect((await screen.findAllByText('Route inondée')).length).toBeGreaterThan(0);
+    expect(
+      screen.getByText(
+        'Les affectations enregistrées restent consultables hors ligne. Reconnectez-vous pour créer une affectation ou modifier son état.',
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText('Signalement')).toBeDisabled();
+    expect(screen.getByLabelText('Intervenant responsable')).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Affecter l’intervention' })).toBeDisabled();
   });
 });

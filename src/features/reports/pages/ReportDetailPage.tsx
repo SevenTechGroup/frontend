@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useAuth } from '../../../app/providers/use-auth';
 import type { ReportPriority, ReportStatus, UpdateReportInput } from '../../../models';
+import { useNetworkStatus } from '../../../offline';
 import { can } from '../../../security/authorization';
 import { queryKeys, reportService, toApiError } from '../../../services';
 import { ReportPhoto } from '../components/ReportPhoto';
@@ -51,6 +52,7 @@ export function ReportDetailPage() {
   const validReportId = Number.isInteger(reportId) && reportId > 0;
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const isOnline = useNetworkStatus();
   const [selectedPriority, setSelectedPriority] = useState<ReportPriority>('medium');
   const [actionError, setActionError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -153,7 +155,7 @@ export function ReportDetailPage() {
         <div className="flex flex-wrap items-start justify-between gap-6">
           <div className="min-w-0">
             <p className="text-xs font-black uppercase tracking-[0.18em] text-amber-300">
-              Dossier #{current.id}
+              Fiche de signalement
             </p>
             <h1 className="mt-2 break-words text-3xl font-black tracking-tight sm:text-4xl">
               {current.title}
@@ -281,7 +283,7 @@ export function ReportDetailPage() {
                   id="report-priority"
                   className="field mt-0"
                   value={selectedPriority}
-                  disabled={updateReport.isPending}
+                  disabled={!isOnline || updateReport.isPending}
                   onChange={(event) => setSelectedPriority(event.target.value as ReportPriority)}
                 >
                   <option value="low">Faible</option>
@@ -291,7 +293,9 @@ export function ReportDetailPage() {
                 <button
                   type="button"
                   className="button-secondary mt-3 w-full"
-                  disabled={updateReport.isPending || selectedPriority === current.priority}
+                  disabled={
+                    !isOnline || updateReport.isPending || selectedPriority === current.priority
+                  }
                   onClick={() => updateReport.mutate({ priority: selectedPriority })}
                 >
                   Enregistrer la priorité
@@ -308,7 +312,7 @@ export function ReportDetailPage() {
                 <button
                   type="button"
                   className="button-primary w-full"
-                  disabled={updateReport.isPending}
+                  disabled={!isOnline || updateReport.isPending}
                   onClick={() => updateReport.mutate({ status: transition })}
                 >
                   {updateReport.isPending

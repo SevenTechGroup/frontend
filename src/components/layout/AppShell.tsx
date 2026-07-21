@@ -4,7 +4,14 @@ import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../app/providers/use-auth';
 import { syncService, useNetworkStatus } from '../../offline';
 import { can } from '../../security/authorization';
-import { queryKeys } from '../../services';
+import {
+  assignmentService,
+  dashboardService,
+  notificationService,
+  queryKeys,
+  referenceService,
+  reportService,
+} from '../../services';
 import { BrandLogo } from '../brand/BrandLogo';
 
 function navClass({ isActive }: { isActive: boolean }) {
@@ -44,7 +51,7 @@ function NavIcon({
 
 const roleLabels = {
   citizen: 'Citoyen',
-  agent: 'Agent terrain',
+  agent: 'Intervenant terrain',
   manager: 'Responsable',
 } as const;
 
@@ -76,6 +83,78 @@ export function AppShell() {
       })
       .catch(() => undefined);
   }, [isOnline, queryClient]);
+
+  useEffect(() => {
+    if (!isOnline || !user) return;
+
+    const reportsTask = queryClient.fetchQuery({
+      queryKey: queryKeys.reports,
+      queryFn: () => reportService.list(),
+      staleTime: 60_000,
+    });
+    const preloadTasks: Promise<unknown>[] = [
+      reportsTask,
+      queryClient.fetchQuery({
+        queryKey: queryKeys.dashboard,
+        queryFn: () => dashboardService.get(),
+        staleTime: 60_000,
+      }),
+      queryClient.fetchQuery({
+        queryKey: queryKeys.notifications,
+        queryFn: () => notificationService.list(),
+        staleTime: 60_000,
+      }),
+      queryClient.fetchQuery({
+        queryKey: queryKeys.categories,
+        queryFn: () => referenceService.categories(),
+        staleTime: 60_000,
+      }),
+      queryClient.fetchQuery({
+        queryKey: queryKeys.territories,
+        queryFn: () => referenceService.territories(),
+        staleTime: 60_000,
+      }),
+    ];
+
+    if (can(user, 'assignment:view')) {
+      preloadTasks.push(
+        queryClient.fetchQuery({
+          queryKey: queryKeys.assignments,
+          queryFn: () => assignmentService.list(),
+          staleTime: 60_000,
+        }),
+      );
+    }
+
+    if (can(user, 'assignment:create')) {
+      preloadTasks.push(
+        queryClient.fetchQuery({
+          queryKey: queryKeys.agents,
+          queryFn: () => referenceService.agents(),
+          staleTime: 60_000,
+        }),
+      );
+    }
+
+    void Promise.allSettled(preloadTasks);
+    void reportsTask
+      .then((reports) => {
+        const attachments = reports
+          .flatMap((report) => report.attachments ?? [])
+          .filter((attachment) => attachment.mime_type.startsWith('image/'));
+
+        return Promise.allSettled(
+          attachments.map((attachment) =>
+            queryClient.fetchQuery({
+              queryKey: queryKeys.attachmentContent(attachment.id),
+              queryFn: () => reportService.getAttachmentContent(attachment.id),
+              staleTime: 15 * 60_000,
+            }),
+          ),
+        );
+      })
+      .catch(() => undefined);
+  }, [isOnline, queryClient, user]);
 
   const handleLogout = async () => {
     try {
@@ -186,7 +265,8 @@ export function AppShell() {
             role="status"
             className="border-t border-amber-200 bg-amber-50 px-4 py-2 text-center text-xs font-bold text-amber-900"
           >
-            Connexion interrompue · la saisie et les brouillons restent disponibles
+            Mode hors ligne · consultation des dernières données enregistrées · les nouvelles
+            alertes restent disponibles dans les brouillons
           </p>
         )}
       </header>

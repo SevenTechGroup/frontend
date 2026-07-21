@@ -1,4 +1,5 @@
 import type { AuthResponse, LoginInput, RegisterInput, User } from '../models';
+import { offlineDataCache } from '../offline/offline-data-cache';
 import { authSession } from '../security/auth-session';
 import { httpClient } from './api/http-client';
 
@@ -22,9 +23,14 @@ class AuthService {
   }
 
   async logout(): Promise<void> {
+    const userId = authSession.getUser()?.id;
+
     try {
       await httpClient.post('/auth/logout');
     } finally {
+      if (userId !== undefined) {
+        await offlineDataCache.clearUser(userId).catch(() => undefined);
+      }
       authSession.clear();
     }
   }
