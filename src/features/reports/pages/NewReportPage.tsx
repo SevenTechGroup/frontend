@@ -325,13 +325,23 @@ export function NewReportPage() {
     try {
       if (!isOnline) {
         await saveDraft();
+        await syncService.enqueueReport(
+          clientSubmissionId,
+          toCreateReportInput(values),
+          compressedPhoto || coordinates
+            ? {
+                photo: compressedPhoto,
+                coordinates,
+                locationConsentAccepted,
+              }
+            : undefined,
+        );
+        await queryClient.invalidateQueries({ queryKey: queryKeys.syncQueue });
         if (compressedPhoto || coordinates) {
           setNotice(
-            'Vous êtes hors ligne. La photo et la position sont protégées dans ce brouillon ; reprenez-le après reconnexion pour les envoyer ensemble.',
+            'Vous êtes hors ligne. Le signalement, la photo et la position sont protégés sur cet appareil et seront envoyés ensemble après reconnexion.',
           );
         } else {
-          await syncService.enqueueReport(clientSubmissionId, toCreateReportInput(values));
-          await queryClient.invalidateQueries({ queryKey: queryKeys.syncQueue });
           setNotice(
             'Vous êtes hors ligne. Le signalement est conservé sur cet appareil et sera envoyé après reconnexion.',
           );

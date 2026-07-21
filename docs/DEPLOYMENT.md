@@ -27,8 +27,11 @@ Les fichiers contenant de vrais domaines ou secrets restent hors Git. Seules
 les variables préfixées par `VITE_` sont intégrées au bundle : elles ne doivent
 jamais contenir de secret.
 
-La synchronisation hors ligne reste désactivée jusqu'à ce que l'API garantisse
-l'idempotence de `X-Idempotency-Key`.
+La synchronisation hors ligne est activée dans les exemples d'environnement.
+L'API garantit l'idempotence de `X-Idempotency-Key`, y compris pour les
+formulaires multipart contenant une photo et une position consentie. Positionner
+`VITE_ENABLE_OFFLINE_SYNC=false` permet de suspendre les envois automatiques
+sans supprimer les brouillons locaux.
 
 ## Construire l'image staging
 

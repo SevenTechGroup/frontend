@@ -59,13 +59,15 @@ procédure de rollback sont documentés dans
 
 ## Synchronisation hors ligne
 
-La file IndexedDB et l’en-tête `X-Idempotency-Key` sont prêts, mais la
-synchronisation automatique est désactivée par défaut :
+La file IndexedDB conserve le signalement et ses preuves (photo et position
+consentie). L’en-tête `X-Idempotency-Key` permet au backend de rejouer une
+tentative interrompue sans créer de doublon. La synchronisation est activée par
+défaut :
 
 ```dotenv
-VITE_ENABLE_OFFLINE_SYNC=false
+VITE_ENABLE_OFFLINE_SYNC=true
 ```
 
-Ne l’activer qu’après prise en charge atomique de l’idempotence par le backend.
-Sans cela, une réponse réseau perdue pourrait créer un doublon lors d’une
-nouvelle tentative.
+Elle peut être désactivée par environnement en positionnant la variable à
+`false`. Les données restent alors dans les brouillons et la file locale jusqu’à
+une reprise manuelle ou une nouvelle configuration.

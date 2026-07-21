@@ -142,7 +142,7 @@ export function HomePage() {
           <div className="absolute -right-48 top-40 -z-10 size-[34rem] rounded-full bg-amber-200/45 blur-3xl" />
 
           <div className="mx-auto grid max-w-7xl items-center gap-16 px-5 sm:px-8 lg:grid-cols-[1.02fr_0.98fr] lg:gap-12">
-            <div className="relative z-10 max-w-2xl">
+            <div className="relative z-10 min-w-0 max-w-2xl">
               <div className="mb-7 inline-flex items-center gap-2 rounded-full border border-teal-900/10 bg-white/80 px-3.5 py-2 text-xs font-bold uppercase tracking-[0.16em] text-teal-800 shadow-sm backdrop-blur">
                 <span className="relative flex size-2">
                   <span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-500 opacity-70" />
@@ -152,11 +152,11 @@ export function HomePage() {
               </div>
               <h1 className="max-w-3xl text-[2.75rem] font-black leading-[1.03] tracking-[-0.045em] text-slate-950 sm:text-6xl lg:text-[4.35rem]">
                 Votre quartier mérite des{' '}
-                <span className="relative whitespace-nowrap text-teal-700">
+                <span className="relative text-teal-700 sm:whitespace-nowrap">
                   solutions visibles.
                   <svg
                     aria-hidden="true"
-                    className="absolute -bottom-2 left-0 h-3 w-full text-amber-400"
+                    className="absolute -bottom-2 left-0 hidden h-3 w-full text-amber-400 sm:block"
                     viewBox="0 0 300 12"
                     preserveAspectRatio="none"
                   >
@@ -205,7 +205,7 @@ export function HomePage() {
               </div>
             </div>
 
-            <div className="relative mx-auto w-full max-w-[590px] lg:ml-auto">
+            <div className="relative mx-auto min-w-0 w-full max-w-[590px] lg:ml-auto">
               <div className="absolute -left-8 top-20 size-32 rounded-full border border-dashed border-teal-700/20" />
               <div className="absolute -right-10 bottom-10 size-44 rounded-full border border-dashed border-amber-600/20" />
               <div className="animate-landing-float relative rounded-[2rem] border border-white/90 bg-white/90 p-3 shadow-[0_35px_90px_-25px_rgba(15,78,68,0.35)] backdrop-blur sm:p-4">

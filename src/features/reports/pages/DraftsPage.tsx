@@ -93,6 +93,16 @@ function QueueCard({
           <dd className="mt-1 font-black text-slate-800">{formatDate(item.nextAttemptAt)}</dd>
         </div>
       </dl>
+      {item.evidence && (item.evidence.photo || item.evidence.coordinates) && (
+        <p className="mt-3 text-xs font-bold text-teal-800">
+          {[
+            item.evidence.photo ? 'Photo jointe' : null,
+            item.evidence.coordinates ? 'Position précise' : null,
+          ]
+            .filter(Boolean)
+            .join(' · ')}
+        </p>
+      )}
       {item.lastError && (
         <p
           role="alert"
@@ -115,7 +125,7 @@ function QueueCard({
             type="button"
             className="button-primary text-sm"
             disabled={!syncEnabled}
-            title={syncEnabled ? undefined : 'En attente de l’idempotence backend'}
+            title={syncEnabled ? undefined : 'Synchronisation indisponible dans cet environnement'}
             onClick={onRetry}
           >
             Réessayer maintenant
@@ -223,9 +233,9 @@ export function DraftsPage() {
 
       {!syncEnabled && (
         <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-950">
-          <strong>Envoi automatique suspendu.</strong> Les brouillons restent protégés sur cet
-          appareil. La synchronisation sera activée après livraison de l’idempotence backend, afin
-          d’éviter tout doublon.
+          <strong>Envoi automatique désactivé.</strong> Les brouillons restent protégés sur cet
+          appareil. Activez <code>VITE_ENABLE_OFFLINE_SYNC</code> dans la configuration de cet
+          environnement pour autoriser les tentatives automatiques.
         </div>
       )}
       {notice && (

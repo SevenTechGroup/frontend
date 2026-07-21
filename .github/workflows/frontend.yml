@@ -55,6 +55,8 @@ jobs:
         run: npm run test
 
       - name: Build production PWA
+        env:
+          VITE_ENABLE_OFFLINE_SYNC: 'true'
         run: npm run build
 
       - name: Upload production bundle
@@ -111,7 +113,7 @@ jobs:
           push: true
           build-args: |
             VITE_API_URL=${{ inputs.api_url }}
-            VITE_ENABLE_OFFLINE_SYNC=false
+            VITE_ENABLE_OFFLINE_SYNC=true
             CSP_CONNECT_SRC=${{ inputs.api_origin }}
           tags: |
             ${{ env.IMAGE_NAME }}:staging

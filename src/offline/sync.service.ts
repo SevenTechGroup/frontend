@@ -1,5 +1,5 @@
 import { env } from '../config/env';
-import type { CreateReportInput } from '../models';
+import type { CreateReportEvidence, CreateReportInput } from '../models';
 import { reportService, toApiError } from '../services';
 import { offlineDatabase } from './database';
 import type { SyncQueueItem, SyncSummary } from './types';
@@ -15,7 +15,11 @@ class SyncService {
   private activeRun: Promise<SyncSummary> | null = null;
   private retryTimer: ReturnType<typeof setTimeout> | null = null;
 
-  async enqueueReport(clientSubmissionId: string, payload: CreateReportInput): Promise<void> {
+  async enqueueReport(
+    clientSubmissionId: string,
+    payload: CreateReportInput,
+    evidence?: CreateReportEvidence,
+  ): Promise<void> {
     const now = new Date().toISOString();
     const existing = await offlineDatabase.syncQueue
       .where('clientSubmissionId')
@@ -26,6 +30,7 @@ class SyncService {
       clientSubmissionId,
       operation: 'report.create',
       payload,
+      ...(evidence ? { evidence } : {}),
       state: 'pending',
       attempts: existing?.attempts ?? 0,
       createdAt: existing?.createdAt ?? now,
@@ -94,7 +99,7 @@ class SyncService {
       await offlineDatabase.syncQueue.update(item.id, { state: 'syncing' });
 
       try {
-        await reportService.create(item.payload, item.clientSubmissionId);
+        await reportService.create(item.payload, item.clientSubmissionId, item.evidence);
         await offlineDatabase.transaction(
           'rw',
           offlineDatabase.syncQueue,

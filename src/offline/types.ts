@@ -1,4 +1,9 @@
-import type { CreateReportInput, ReportCoordinates, ReportPriority } from '../models';
+import type {
+  CreateReportEvidence,
+  CreateReportInput,
+  ReportCoordinates,
+  ReportPriority,
+} from '../models';
 
 export interface OfflineDraft {
   clientSubmissionId: string;
@@ -22,6 +27,7 @@ export interface SyncQueueItem {
   clientSubmissionId: string;
   operation: 'report.create';
   payload: CreateReportInput;
+  evidence?: CreateReportEvidence;
   state: SyncState;
   attempts: number;
   createdAt: string;

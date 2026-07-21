@@ -25,7 +25,9 @@ catégories, territoires, signalements, affectations, notifications et tableau
 de bord. Les statuts et rôles reprennent exactement les enums Laravel.
 
 Les données serveur restent dans TanStack Query. Les brouillons locaux et la
-file d’envoi vivent dans IndexedDB. Aucun jeton JWT n’est écrit dans IndexedDB.
+file d’envoi vivent dans IndexedDB. La photo compressée et la position précise
+consentie suivent le signalement dans ces deux stockages jusqu’à l’envoi.
+Aucun jeton JWT n’est écrit dans IndexedDB.
 
 ## Sécurité
 
@@ -53,10 +55,10 @@ domaine réel de l’API dans `connect-src`.
 ## Hors ligne et idempotence
 
 Un `clientSubmissionId` est généré côté navigateur et transmis par
-`X-Idempotency-Key`. Le backend actuel n’exploite pas encore cet en-tête. Pour
-éviter une fausse garantie de non-duplication, `VITE_ENABLE_OFFLINE_SYNC` vaut
-`false` par défaut. Le prochain incrément backend doit persister la clé avec une
-contrainte unique, puis retourner la première réponse lors des répétitions.
+`X-Idempotency-Key`. Le backend persiste cette clé avec une contrainte unique et
+rejoue la première réponse lors des répétitions. Son empreinte canonique couvre
+les champs et le contenu des fichiers sans dépendre de la boundary multipart.
+Les exemples d’environnement activent donc `VITE_ENABLE_OFFLINE_SYNC`.
 
 Les erreurs `4xx` bloquent l’élément de file afin qu’un humain corrige le
 brouillon. Les erreurs réseau, `429` et `5xx` utilisent une temporisation
@@ -66,5 +68,5 @@ exponentielle plafonnée à quinze minutes.
 
 Les modules `assignments`, `notifications` et administration disposent déjà de
 leurs modèles/services. Leurs écrans peuvent être ajoutés sous `src/features`
-sans modifier le client HTTP. Les pièces jointes, la cartographie et le suivi
-public attendent encore leurs endpoints backend.
+sans modifier le client HTTP. La consultation cartographique et le suivi public
+attendent encore leurs écrans et endpoints dédiés.
