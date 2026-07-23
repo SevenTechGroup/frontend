@@ -8,6 +8,24 @@ interface AuthPageProps {
   mode: 'login' | 'register';
 }
 
+const DEMO_ACCOUNTS = [
+  {
+    role: 'Gestionnaire',
+    email: 'manager@sahelsignal.local',
+    password: 'Manager@2026!',
+  },
+  {
+    role: 'Intervenant',
+    email: 'agent@sahelsignal.local',
+    password: 'Agent@2026!',
+  },
+  {
+    role: 'Citoyen',
+    email: 'citoyen@sahelsignal.local',
+    password: 'Citoyen@2026!',
+  },
+] as const;
+
 type AuthIconName = 'arrow' | 'check' | 'eye' | 'eyeOff' | 'lock' | 'mail' | 'shield' | 'user';
 
 function AuthIcon({ name, className = 'size-5' }: { name: AuthIconName; className?: string }) {
@@ -75,6 +93,7 @@ export function AuthPage({ mode }: AuthPageProps) {
   const [submitting, setSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
+  const [emailValue, setEmailValue] = useState('');
   const [passwordValue, setPasswordValue] = useState('');
   const isRegister = mode === 'register';
 
@@ -275,6 +294,52 @@ export function AuthPage({ mode }: AuthPageProps) {
               </Link>
             </div>
 
+            {!isRegister && (
+              <section className="mt-6 rounded-2xl border border-amber-200 bg-amber-50/80 p-4">
+                <div className="flex items-start gap-3">
+                  <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-amber-300 text-slate-950">
+                    <AuthIcon name="user" className="size-4" />
+                  </span>
+                  <div>
+                    <h2 className="font-black text-slate-900">Accès de démonstration</h2>
+                    <p className="mt-0.5 text-xs leading-5 text-slate-600">
+                      Jury : choisissez un rôle pour remplir automatiquement le formulaire.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-3 grid gap-2">
+                  {DEMO_ACCOUNTS.map((account) => (
+                    <button
+                      key={account.role}
+                      type="button"
+                      className="rounded-xl border border-amber-200/80 bg-white px-3.5 py-3 text-left transition hover:border-teal-300 hover:bg-teal-50 focus-visible:border-teal-500"
+                      onClick={() => {
+                        setEmailValue(account.email);
+                        setPasswordValue(account.password);
+                        setError(null);
+                      }}
+                      aria-label={`Utiliser le compte ${account.role}`}
+                    >
+                      <span className="flex items-center justify-between gap-3">
+                        <span className="text-sm font-black text-teal-800">{account.role}</span>
+                        <span className="text-[0.65rem] font-black uppercase tracking-[0.12em] text-slate-400">
+                          Cliquer pour utiliser
+                        </span>
+                      </span>
+                      <span className="mt-1.5 block break-all text-xs font-semibold text-slate-600">
+                        Identifiant : <strong className="text-slate-900">{account.email}</strong>
+                      </span>
+                      <span className="mt-1 block text-xs font-semibold text-slate-600">
+                        Mot de passe :{' '}
+                        <strong className="font-mono text-slate-900">{account.password}</strong>
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </section>
+            )}
+
             {error && (
               <div
                 role="alert"
@@ -318,6 +383,8 @@ export function AuthPage({ mode }: AuthPageProps) {
                     autoComplete="email"
                     autoFocus={!isRegister}
                     placeholder="nom@exemple.com"
+                    value={emailValue}
+                    onChange={(event) => setEmailValue(event.target.value)}
                   />
                 </span>
               </label>
@@ -333,6 +400,7 @@ export function AuthPage({ mode }: AuthPageProps) {
                     minLength={8}
                     autoComplete={isRegister ? 'new-password' : 'current-password'}
                     placeholder={isRegister ? '8 caractères minimum' : 'Votre mot de passe'}
+                    value={passwordValue}
                     onChange={(event) => setPasswordValue(event.target.value)}
                   />
                   <button
